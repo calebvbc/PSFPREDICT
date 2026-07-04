@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { savePredictionsSchema, usernameSchema } from '../../../shared/validators/prediction';
 import type { Env } from '../lib/env';
-import { assertSaveRateLimit, getParticipantByUsername, upsertParticipantPredictions } from '../lib/memory-store';
+import { assertSaveRateLimit, getParticipantByUsername, upsertParticipantPredictions, validatePredictionWindow } from '../lib/memory-store';
 
 function getClientIp(request: Request) {
   return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
@@ -24,6 +24,13 @@ export const predictionsRoute = new Hono<{ Bindings: Env }>()
     const parsed = savePredictionsSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) {
       return c.json({ error: 'Dados inválidos.', issues: parsed.error.flatten() }, 400);
+    }
+
+    for (const prediction of parsed.data.predictions) {
+      const windowValidation = validatePredictionWindow(prediction.matchExternalId);
+      if (!windowValidation.ok) {
+        return c.json({ error: windowValidation.error, matchExternalId: prediction.matchExternalId }, 409);
+      }
     }
 
     const participant = upsertParticipantPredictions(parsed.data);
