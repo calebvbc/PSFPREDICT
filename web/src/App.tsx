@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+
+function apiUrl(path: string) {
+  return `${API_BASE_URL}${path}`;
+}
+
 const ROUND_LABELS: Record<MatchRound, string> = {
   round_of_16: 'Oitavas de Final',
   quarterfinal: 'Quartas de Final',
@@ -45,9 +51,9 @@ export function App() {
 
   const refreshPublicData = useCallback(async () => {
     const [matchesResponse, rankingResponse, feedResponse] = await Promise.all([
-      fetch('/api/matches'),
-      fetch('/api/ranking'),
-      fetch('/api/feed?limit=12'),
+      fetch(apiUrl('/api/matches')),
+      fetch(apiUrl('/api/ranking')),
+      fetch(apiUrl('/api/feed?limit=12')),
     ]);
 
     const [matchesData, rankingData, feedData] = await Promise.all([
@@ -77,7 +83,7 @@ export function App() {
     if (!normalized) return;
 
     try {
-      const response = await fetch(`/api/participants/${encodeURIComponent(normalized)}`);
+      const response = await fetch(apiUrl(`/api/participants/${encodeURIComponent(normalized)}`));
       const data = await response.json() as { participant: ParticipantPredictionsSnapshot | null };
       if (!data.participant) {
         setLookupMessage('Username novo — preencha seus palpites do zero.');
@@ -133,7 +139,7 @@ export function App() {
   async function loadMatchPredictions(matchExternalId: string) {
     setMatchPredictions((current) => ({ ...current, [matchExternalId]: { loading: true } }));
     try {
-      const response = await fetch(`/api/matches/${encodeURIComponent(matchExternalId)}/predictions`);
+      const response = await fetch(apiUrl(`/api/matches/${encodeURIComponent(matchExternalId)}/predictions`));
       const data = await response.json() as { predictions?: PublicPredictionSnapshot[]; error?: string };
       if (!response.ok) throw new Error(data.error ?? 'Não foi possível revelar os palpites.');
       setMatchPredictions((current) => ({ ...current, [matchExternalId]: { predictions: data.predictions ?? [] } }));
@@ -164,7 +170,7 @@ export function App() {
 
     setSaving(true);
     try {
-      const response = await fetch('/api/predictions', {
+      const response = await fetch(apiUrl('/api/predictions'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ displayName, username, predictions: validation.predictions }),
