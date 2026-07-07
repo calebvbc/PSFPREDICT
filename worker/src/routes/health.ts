@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
+import { createDb } from '../lib/db';
 import type { Env } from '../lib/env';
+import { createRepository } from '../lib/repository';
 import { adminAuth } from '../middleware/admin-auth';
-import { getFeedEvents, getRanking, getSyncOperationalState, listMatches } from '../lib/memory-store';
 
 const service = {
   name: 'psfpredict-api',
@@ -12,8 +13,8 @@ function getEnvironment(env: Env) {
   return env.APP_ENV ?? env.ENVIRONMENT ?? 'unknown';
 }
 
-function getPublicHealth(env: Env) {
-  const sync = getSyncOperationalState();
+async function getPublicHealth(env: Env) {
+  const sync = await createRepository(createDb(env)).getSyncOperationalState();
 
   return {
     ok: sync.lastSyncStatus !== 'error' || sync.matchCount > 0,
@@ -31,20 +32,24 @@ function getPublicHealth(env: Env) {
 }
 
 export const healthRoute = new Hono<{ Bindings: Env }>()
-  .get('/health', (c) => c.json(getPublicHealth(c.env)))
+  .get('/health', async (c) => c.json(await getPublicHealth(c.env)))
   .use('/admin/status', adminAuth)
-  .get('/admin/status', (c) => c.json({
-    ...getPublicHealth(c.env),
-    diagnostics: {
-      rankingEntryCount: getRanking().length,
-      feedEventCount: getFeedEvents(101).length,
-      matches: listMatches().map((match) => ({
-        externalId: match.externalId,
-        kickoffAt: match.kickoffAt,
-        status: match.status,
-        homeTeam: match.homeTeam.name,
-        awayTeam: match.awayTeam.name,
-        score: match.homeScore === null || match.awayScore === null ? null : `${match.homeScore}-${match.awayScore}`,
-      })),
-    },
-  }));
+  .get('/admin/status', async (c) => {
+    const repository = createRepository(createDb(c.env));
+    const matches = await repository.listMatches();
+    return c.json({
+      ...await getPublicHealth(c.env),
+      diagnostics: {
+        rankingEntryCount: (await repository.getRanking()).length,
+        feedEventCount: (await repository.getFeedEvents(101)).length,
+        matches: matches.map((match) => ({
+          externalId: match.externalId,
+          kickoffAt: match.kickoffAt,
+          status: match.status,
+          homeTeam: match.homeTeam.name,
+          awayTeam: match.awayTeam.name,
+          score: match.homeScore === null || match.awayScore === null ? null : `${match.homeScore}-${match.awayScore}`,
+        })),
+      },
+    });
+  });
