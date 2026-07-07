@@ -7,6 +7,24 @@ let ranking: RankingEntrySnapshot[] = [];
 let previousPositions = new Map<string, number>();
 const feedEvents: FeedEventSnapshot[] = [];
 
+export type SyncStatus = 'never' | 'success' | 'error';
+
+export interface SyncOperationalState {
+  lastSyncAt: string | null;
+  lastSyncStatus: SyncStatus;
+  lastSyncError: string | null;
+  lastFetchedMatchCount: number;
+  matchCount: number;
+}
+
+let syncOperationalState: SyncOperationalState = {
+  lastSyncAt: null,
+  lastSyncStatus: 'never',
+  lastSyncError: null,
+  lastFetchedMatchCount: 0,
+  matchCount: 0,
+};
+
 export function getParticipantByUsername(username: string) {
   return participants.get(username.toLowerCase()) ?? null;
 }
@@ -21,6 +39,37 @@ export function getRanking() {
 
 export function getFeedEvents(limit = 30) {
   return feedEvents.slice(0, limit);
+}
+
+export function getSyncOperationalState(): SyncOperationalState {
+  return {
+    ...syncOperationalState,
+    matchCount: matches.size,
+  };
+}
+
+export function recordSyncSuccess(args: { syncedAt: string; fetchedMatchCount: number }) {
+  syncOperationalState = {
+    lastSyncAt: args.syncedAt,
+    lastSyncStatus: 'success',
+    lastSyncError: null,
+    lastFetchedMatchCount: args.fetchedMatchCount,
+    matchCount: matches.size,
+  };
+
+  return getSyncOperationalState();
+}
+
+export function recordSyncFailure(args: { syncedAt: string; error: string }) {
+  syncOperationalState = {
+    ...syncOperationalState,
+    lastSyncAt: args.syncedAt,
+    lastSyncStatus: 'error',
+    lastSyncError: args.error,
+    matchCount: matches.size,
+  };
+
+  return getSyncOperationalState();
 }
 
 export function upsertParticipantPredictions(args: {
@@ -99,6 +148,7 @@ export function getPublicPredictionsForMatch(matchExternalId: string, now = Date
     if (!prediction) return [];
 
     return [{
+      participantKey: getParticipantKey(participant.username),
       displayName: participant.displayName,
       initials: getInitials(participant.displayName),
       matchExternalId,
@@ -223,6 +273,19 @@ function prependFeedEvent(event: Omit<FeedEventSnapshot, 'id' | 'createdAt'>) {
   });
 
   if (feedEvents.length > 100) feedEvents.length = 100;
+}
+
+function getParticipantKey(username: string) {
+  return `participant:${hashString(username)}`;
+}
+
+function hashString(value: string) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 {
