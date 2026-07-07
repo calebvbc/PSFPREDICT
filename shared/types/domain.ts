@@ -61,6 +61,7 @@ export interface FeedEventSnapshot {
 }
 
 export interface PublicPredictionSnapshot {
+  participantKey: string;
   displayName: string;
   initials: string;
   matchExternalId: string;
