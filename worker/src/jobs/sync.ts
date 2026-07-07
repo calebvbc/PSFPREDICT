@@ -1,6 +1,7 @@
+import { createDb } from '../lib/db';
 import type { Env } from '../lib/env';
 import { fetchKnockoutMatches } from '../lib/espn';
-import { recordSyncFailure, recordSyncSuccess, upsertMatches } from '../lib/memory-store';
+import { createRepository } from '../lib/repository';
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Unknown sync error';
@@ -8,11 +9,13 @@ function getErrorMessage(error: unknown) {
 
 export async function syncKnockoutMatches(env: Env) {
   const startedAt = new Date().toISOString();
+  const repository = createRepository(createDb(env));
 
   try {
-    const matches = await fetchKnockoutMatches(env);
-    const result = upsertMatches(matches);
-    const syncState = recordSyncSuccess({
+    const scoreboard = await fetchKnockoutMatches(env);
+    const matches = scoreboard.matches;
+    const result = await repository.upsertMatches(matches);
+    const syncState = await repository.recordSyncSuccess({
       syncedAt: new Date().toISOString(),
       fetchedMatchCount: matches.length,
     });
@@ -24,7 +27,7 @@ export async function syncKnockoutMatches(env: Env) {
       matches,
     };
   } catch (error) {
-    const syncState = recordSyncFailure({
+    const syncState = await repository.recordSyncFailure({
       syncedAt: new Date().toISOString(),
       error: getErrorMessage(error),
     });
