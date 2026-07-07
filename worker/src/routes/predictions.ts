@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { savePredictionsSchema, usernameSchema } from '../../../shared/validators/prediction';
 import type { Env } from '../lib/env';
-import { assertSaveRateLimit, getParticipantByUsername, getPublicPredictionsForMatch, upsertParticipantPredictions, validatePredictionWindow } from '../lib/memory-store';
+import { getParticipantByUsername, getPublicPredictionsForMatch, upsertParticipantPredictions, validatePredictionWindow } from '../lib/memory-store';
+import { assertSaveRateLimit } from '../lib/rate-limit';
 
 function getClientIp(request: Request) {
   return request.headers.get('cf-connecting-ip') ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
@@ -21,7 +22,7 @@ export const predictionsRoute = new Hono<{ Bindings: Env }>()
     return c.json({ predictions: result.predictions });
   })
   .post('/predictions', async (c) => {
-    const rateLimit = assertSaveRateLimit(getClientIp(c.req.raw));
+    const rateLimit = await assertSaveRateLimit(c.env.RATE_LIMIT_KV, getClientIp(c.req.raw));
     if (rateLimit.limited) {
       c.header('Retry-After', String(rateLimit.retryAfterSeconds));
       return c.json({ error: `Aguarde ${rateLimit.retryAfterSeconds}s antes de salvar novamente.` }, 429);

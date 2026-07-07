@@ -3,7 +3,6 @@ import type { FeedEventSnapshot, MatchSnapshot, ParticipantPredictionsSnapshot, 
 
 const participants = new Map<string, ParticipantPredictionsSnapshot>();
 const matches = new Map<string, MatchSnapshot>();
-const lastSaveByIp = new Map<string, number>();
 let ranking: RankingEntrySnapshot[] = [];
 let previousPositions = new Map<string, number>();
 const feedEvents: FeedEventSnapshot[] = [];
@@ -120,17 +119,6 @@ export function validatePredictionWindow(matchExternalId: string, now = Date.now
   if (match.status !== 'scheduled') return { ok: false, error: 'Partida já começou ou foi encerrada.' } as const;
   if (new Date(match.kickoffAt).getTime() <= now) return { ok: false, error: 'Palpites encerrados para esta partida.' } as const;
   return { ok: true } as const;
-}
-
-export function assertSaveRateLimit(ip: string, now = Date.now()) {
-  const previous = lastSaveByIp.get(ip) ?? 0;
-  const waitMs = 5_000 - (now - previous);
-  if (waitMs > 0) {
-    return { limited: true, retryAfterSeconds: Math.ceil(waitMs / 1_000) } as const;
-  }
-
-  lastSaveByIp.set(ip, now);
-  return { limited: false } as const;
 }
 
 export function forceRecalculateRanking() {

@@ -4,4 +4,5 @@ export interface Env {
   ESPN_KNOCKOUT_DATES: string;
   ADMIN_EMAIL: string;
   ADMIN_TOKEN: string;
+  RATE_LIMIT_KV: KVNamespace;
 }
