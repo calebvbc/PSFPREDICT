@@ -14,7 +14,9 @@
     "db:migrate": "drizzle-kit migrate",
     "deploy:worker": "wrangler deploy",
     "deploy:web": "npm run build && wrangler pages deploy dist --project-name psfpredict",
-    "deploy:dry-run": "npm run build && wrangler deploy --dry-run"
+    "deploy:dry-run": "npm run build && wrangler deploy --dry-run",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@neondatabase/serverless": "latest",
@@ -44,6 +46,7 @@
     "typescript": "latest",
     "typescript-eslint": "latest",
     "vite": "latest",
+    "vitest": "^4.1.10",
     "wrangler": "latest"
   },
   "engines": {

@@ -16,10 +16,28 @@ const ROUND_LABELS: Record<MatchRound, string> = {
 };
 
 const ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+const BUILD_VERSION = import.meta.env.VITE_APP_VERSION ?? import.meta.env.VITE_COMMIT_SHA ?? 'local';
+
 
 type ScoreDraft = { homeScore: string; awayScore: string; saved?: boolean; error?: string };
 type ToastState = { type: 'success' | 'error'; message: string } | null;
 type MatchPredictionsState = Record<string, { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }>;
+type PublicDataError = { message: string; retry: () => void };
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Falha ao carregar ${url}: status ${response.status}`);
+  }
+
+  const contentType = response.headers.get('content-type');
+  if (!contentType?.toLowerCase().includes('application/json')) {
+    throw new Error(`Resposta inválida de ${url}: conteúdo não é JSON.`);
+  }
+
+  return response.json() as Promise<T>;
+}
 
 export function App() {
   const [route, setRoute] = useState(() => window.location.pathname);
@@ -31,6 +49,8 @@ export function App() {
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [matchPredictions, setMatchPredictions] = useState<MatchPredictionsState>({});
   const [loadingMatches, setLoadingMatches] = useState(true);
+  const [loadingPublicData, setLoadingPublicData] = useState(true);
+  const [publicDataError, setPublicDataError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const [lookupMessage, setLookupMessage] = useState('');
@@ -69,8 +89,7 @@ export function App() {
 
   useEffect(() => {
     refreshPublicData()
-      .catch(() => setToast({ type: 'error', message: 'Não foi possível carregar os dados públicos.' }))
-      .finally(() => setLoadingMatches(false));
+      .catch(() => setToast({ type: 'error', message: 'Não foi possível carregar os dados públicos.' }));
   }, [refreshPublicData]);
 
   useEffect(() => {
@@ -194,16 +213,20 @@ export function App() {
     }
   }
 
+  const publicDataErrorState = publicDataError ? { message: publicDataError, retry: refreshPublicData } : undefined;
+
   return (
     <main className="min-h-screen bg-psf-background pb-28 text-psf-text">
       <TopNav route={route} navigate={navigate} />
 
-      {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} />}
+      {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} loading={loadingPublicData} error={publicDataErrorState} navigate={navigate} />}
       {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
       {route === '/ranking' && <RankingPage ranking={ranking} finalMatchClosed={finalMatchClosed} leaders={leaders} />}
       {route === '/feed' && <FeedPage feed={feed} />}
-      {!['/', '/palpites', '/ranking', '/feed'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} />}
+      {route === '/health' && <HealthPage buildVersion={BUILD_VERSION} />}
+      {!['/', '/palpites', '/ranking', '/feed', '/health'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} />}
 
+      <BuildFooter buildVersion={BUILD_VERSION} navigate={navigate} />
       {toast && <Toast toast={toast} />}
     </main>
   );
@@ -231,7 +254,7 @@ function TopNav({ route, navigate }: { route: string; navigate: (path: string) =
   );
 }
 
-function HomePage({ nextMatch, ranking, feed, finalMatchClosed, leaders, navigate }: { nextMatch?: MatchSnapshot; ranking: RankingEntrySnapshot[]; feed: FeedEventSnapshot[]; finalMatchClosed: boolean; leaders: RankingEntrySnapshot[]; navigate: (path: string) => void }) {
+function HomePage({ nextMatch, ranking, feed, finalMatchClosed, leaders, loading, error, navigate }: { nextMatch?: MatchSnapshot; ranking: RankingEntrySnapshot[]; feed: FeedEventSnapshot[]; finalMatchClosed: boolean; leaders: RankingEntrySnapshot[]; loading: boolean; error?: PublicDataError; navigate: (path: string) => void }) {
   return (
     <section className="mx-auto grid max-w-5xl gap-6 px-5 py-8">
       {finalMatchClosed && leaders.length > 0 && <ChampionBanner leaders={leaders} />}
@@ -241,11 +264,13 @@ function HomePage({ nextMatch, ranking, feed, finalMatchClosed, leaders, navigat
         <p className="mt-4 max-w-2xl text-lg text-psf-secondary">Palpite rápido, ranking automático e suspense até o kickoff. Tudo em uma experiência clara, mobile first e feita para a comunidade.</p>
         <button className="mt-7 rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card" onClick={() => navigate('/palpites')} type="button">Fazer meus palpites</button>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <InfoPanel title="Próximo jogo">{nextMatch ? <MiniMatch match={nextMatch} /> : <EmptySmall text="Nenhum jogo aberto agora." />}</InfoPanel>
-        <InfoPanel title="Liderança">{ranking.length > 0 ? ranking.map((entry) => <RankingMini entry={entry} key={entry.username} />) : <EmptySmall text="Ranking ainda vazio." />}</InfoPanel>
-        <InfoPanel title="Últimos eventos">{feed.length > 0 ? feed.map((event) => <p className="rounded-2xl bg-psf-background p-3 text-sm font-bold" key={event.id}>{event.message}</p>) : <EmptySmall text="Feed será gerado após os jogos." />}</InfoPanel>
-      </div>
+      {error ? <ErrorCard message={error.message} onRetry={error.retry} /> : (
+        <div className="grid gap-4 md:grid-cols-3">
+          <InfoPanel title="Próximo jogo">{loading ? <EmptySmall text="Carregando próximo jogo..." /> : nextMatch ? <MiniMatch match={nextMatch} /> : <EmptySmall text="Nenhum jogo aberto agora." />}</InfoPanel>
+          <InfoPanel title="Liderança">{loading ? <EmptySmall text="Carregando ranking..." /> : ranking.length > 0 ? ranking.map((entry) => <RankingMini entry={entry} key={entry.username} />) : <EmptySmall text="Ranking ainda vazio." />}</InfoPanel>
+          <InfoPanel title="Últimos eventos">{loading ? <EmptySmall text="Carregando feed..." /> : feed.length > 0 ? feed.map((event) => <p className="rounded-2xl bg-psf-background p-3 text-sm font-bold" key={event.id}>{event.message}</p>) : <EmptySmall text="Feed será gerado após os jogos." />}</InfoPanel>
+        </div>
+      )}
     </section>
   );
 }
@@ -275,16 +300,50 @@ function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; mat
   );
 }
 
-function RankingPage({ ranking, finalMatchClosed, leaders }: { ranking: RankingEntrySnapshot[]; finalMatchClosed: boolean; leaders: RankingEntrySnapshot[] }) {
+function RankingPage({ ranking, finalMatchClosed, leaders, loading, error }: { ranking: RankingEntrySnapshot[]; finalMatchClosed: boolean; leaders: RankingEntrySnapshot[]; loading: boolean; error?: PublicDataError }) {
   return <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8">{finalMatchClosed && leaders.length > 0 && <ChampionBanner leaders={leaders} />}
     <h1 className="text-4xl font-black tracking-tight">Ranking Geral</h1>
-    {ranking.length === 0 && <EmptyCard message="Ranking ainda vazio." />}
-    {ranking.map((entry) => <RankingCard entry={entry} key={entry.username} highlight={finalMatchClosed && entry.position === 1} />)}
+    {error && <ErrorCard message={error.message} onRetry={error.retry} />}
+    {!error && loading && <EmptyCard message="Carregando ranking..." />}
+    {!error && !loading && ranking.length === 0 && <EmptyCard message="Ranking ainda vazio." />}
+    {!error && ranking.map((entry) => <RankingCard entry={entry} key={entry.username} highlight={finalMatchClosed && entry.position === 1} />)}
   </section>;
 }
 
-function FeedPage({ feed }: { feed: FeedEventSnapshot[] }) {
-  return <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8"><h1 className="text-4xl font-black tracking-tight">Feed PSF</h1>{feed.length === 0 && <EmptyCard message="Eventos automáticos aparecerão após o recálculo dos jogos." />}{feed.map((event) => <article className="rounded-[1.5rem] bg-psf-surface p-5 shadow-card" key={event.id}><p className="font-black">{event.message}</p><time className="mt-2 block text-sm font-bold text-psf-secondary">{formatKickoff(event.createdAt)}</time></article>)}</section>;
+function FeedPage({ feed, loading, error }: { feed: FeedEventSnapshot[]; loading: boolean; error?: PublicDataError }) {
+  return <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8"><h1 className="text-4xl font-black tracking-tight">Feed PSF</h1>{error && <ErrorCard message={error.message} onRetry={error.retry} />}{!error && loading && <EmptyCard message="Carregando feed..." />}{!error && !loading && feed.length === 0 && <EmptyCard message="Eventos automáticos aparecerão após o recálculo dos jogos." />}{!error && feed.map((event) => <article className="rounded-[1.5rem] bg-psf-surface p-5 shadow-card" key={event.id}><p className="font-black">{event.message}</p><time className="mt-2 block text-sm font-bold text-psf-secondary">{formatKickoff(event.createdAt)}</time></article>)}</section>;
+}
+
+
+function HealthPage({ buildVersion }: { buildVersion: string }) {
+  return (
+    <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8">
+      <h1 className="text-4xl font-black tracking-tight">Health</h1>
+      <div className="rounded-[2rem] bg-psf-surface p-6 shadow-card">
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-psf-blue">Frontend</p>
+        <dl className="mt-4 grid gap-3 text-sm font-bold text-psf-secondary">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-background p-4">
+            <dt>Build</dt>
+            <dd className="font-mono text-psf-text" data-testid="build-version">{buildVersion}</dd>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-background p-4">
+            <dt>Status</dt>
+            <dd className="text-psf-success">ok</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function BuildFooter({ buildVersion, navigate }: { buildVersion: string; navigate: (path: string) => void }) {
+  return (
+    <footer className="mx-auto max-w-5xl px-5 pb-6 pt-2 text-right text-xs font-bold text-psf-muted">
+      <button className="font-mono hover:text-psf-secondary" onClick={() => navigate('/health')} type="button" title="Build version">
+        build {buildVersion.slice(0, 12)}
+      </button>
+    </footer>
+  );
 }
 
 function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onReveal: (matchExternalId: string) => void }) {
@@ -299,7 +358,7 @@ function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }:
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3"><TeamBlock name={match.homeTeam.name} logoUrl={match.homeTeam.logoUrl} align="right" /><div className="grid grid-cols-[4rem_auto_4rem] items-center gap-2"><ScoreInput value={locked ? match.homeScore : draft?.homeScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'homeScore', value)} /><span className="text-xl font-black text-psf-muted">×</span><ScoreInput value={locked ? match.awayScore : draft?.awayScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'awayScore', value)} /></div><TeamBlock name={match.awayTeam.name} logoUrl={match.awayTeam.logoUrl} align="left" /></div>
       {draft?.error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-psf-danger">{draft.error}</p>}
       {draft?.saved && !draft.error && <p className="mt-4 text-sm font-black text-psf-success">✓ Salvo</p>}
-      {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="text-sm font-black text-psf-blue" type="button" onClick={() => onReveal(match.externalId)}>{publicPredictions?.loading ? 'Carregando...' : 'Ver palpites revelados'}</button>{publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex items-center justify-between rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={`${prediction.displayName}-${prediction.savedAt}`}><span>{prediction.displayName}</span><span className={prediction.points === 1 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore}</span></div>)}</div>}</section>}
+      {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="text-sm font-black text-psf-blue" type="button" onClick={() => onReveal(match.externalId)}>{publicPredictions?.loading ? 'Carregando...' : 'Ver palpites revelados'}</button>{publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex items-center justify-between rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={prediction.participantKey}><span>{prediction.displayName}</span><span className={prediction.points === 1 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore}</span></div>)}</div>}</section>}
     </article>
   );
 }
@@ -334,6 +393,10 @@ function ScoreInput({ value, disabled, onChange }: { value?: string | number | n
 
 function EmptyCard({ message }: { message: string }) {
   return <div className="rounded-[2rem] bg-psf-surface p-8 text-center font-bold text-psf-secondary shadow-card">{message}</div>;
+}
+
+function ErrorCard({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <div className="rounded-[2rem] border border-red-100 bg-red-50 p-8 text-center shadow-card"><p className="text-sm font-black uppercase tracking-[0.2em] text-psf-danger">Erro ao carregar dados</p><p className="mt-3 font-bold text-psf-text">{message}</p><button className="mt-5 rounded-full bg-psf-danger px-6 py-3 font-black text-white" onClick={() => void onRetry()} type="button">Tentar recarregar</button></div>;
 }
 
 function EmptySmall({ text }: { text: string }) {
