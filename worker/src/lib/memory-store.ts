@@ -7,6 +7,24 @@ let ranking: RankingEntrySnapshot[] = [];
 let previousPositions = new Map<string, number>();
 const feedEvents: FeedEventSnapshot[] = [];
 
+export type SyncStatus = 'never' | 'success' | 'error';
+
+export interface SyncOperationalState {
+  lastSyncAt: string | null;
+  lastSyncStatus: SyncStatus;
+  lastSyncError: string | null;
+  lastFetchedMatchCount: number;
+  matchCount: number;
+}
+
+let syncOperationalState: SyncOperationalState = {
+  lastSyncAt: null,
+  lastSyncStatus: 'never',
+  lastSyncError: null,
+  lastFetchedMatchCount: 0,
+  matchCount: 0,
+};
+
 export function getParticipantByUsername(username: string) {
   return participants.get(username.toLowerCase()) ?? null;
 }
@@ -21,6 +39,37 @@ export function getRanking() {
 
 export function getFeedEvents(limit = 30) {
   return feedEvents.slice(0, limit);
+}
+
+export function getSyncOperationalState(): SyncOperationalState {
+  return {
+    ...syncOperationalState,
+    matchCount: matches.size,
+  };
+}
+
+export function recordSyncSuccess(args: { syncedAt: string; fetchedMatchCount: number }) {
+  syncOperationalState = {
+    lastSyncAt: args.syncedAt,
+    lastSyncStatus: 'success',
+    lastSyncError: null,
+    lastFetchedMatchCount: args.fetchedMatchCount,
+    matchCount: matches.size,
+  };
+
+  return getSyncOperationalState();
+}
+
+export function recordSyncFailure(args: { syncedAt: string; error: string }) {
+  syncOperationalState = {
+    ...syncOperationalState,
+    lastSyncAt: args.syncedAt,
+    lastSyncStatus: 'error',
+    lastSyncError: args.error,
+    matchCount: matches.size,
+  };
+
+  return getSyncOperationalState();
 }
 
 export function upsertParticipantPredictions(args: {

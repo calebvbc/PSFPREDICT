@@ -5,4 +5,6 @@ export interface Env {
   ADMIN_EMAIL: string;
   ADMIN_TOKEN: string;
   RATE_LIMIT_KV: KVNamespace;
+  APP_ENV?: string;
+  ENVIRONMENT?: string;
 }
