@@ -22,6 +22,14 @@ The API, ESPN sync cron, ranking recalculation, feed generation, and prediction 
 npm run deploy:worker
 ```
 
+### Worker secrets
+
+Administrative endpoints require `ADMIN_TOKEN` in the `x-admin-token` request header. Configure it as a Cloudflare Worker secret before deploying or rotating admin access:
+
+```bash
+wrangler secret put ADMIN_TOKEN
+```
+
 ## Pre-deploy check
 
 ```bash
