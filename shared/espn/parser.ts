@@ -53,18 +53,15 @@ function parseEvent(event: unknown): { match: MatchSnapshot | null; discardedUnk
   const away = competitors.find((competitor) => competitor.homeAway === 'away') ?? competitors[1];
 
   return {
-    discardedUnknownRound: false,
-    match: {
-      externalId: record.id,
-      round,
-      kickoffAt: String(record.date ?? competition.date ?? ''),
-      status: parseStatus(asRecord(asRecord(record.status).type).name, asRecord(asRecord(record.status).type).state),
-      homeTeam: parseTeam(home),
-      awayTeam: parseTeam(away),
-      homeScore: parseNullableInt(home.score),
-      awayScore: parseNullableInt(away.score),
-      winnerTeamId: findWinnerTeamId(competitors),
-    },
+    externalId: record.id,
+    round: parseRound(record.name, record.shortName),
+    kickoffAt: String(record.date ?? competition.date ?? ''),
+    status: parseStatus(asRecord(asRecord(competition.status).type), asRecord(asRecord(record.status).type)),
+    homeTeam: parseTeam(home),
+    awayTeam: parseTeam(away),
+    homeScore: parseNullableInt(home.score),
+    awayScore: parseNullableInt(away.score),
+    winnerTeamId: findWinnerTeamId(competitors),
   };
 }
 
@@ -88,11 +85,46 @@ export function parseRound(...names: unknown[]): MatchRound | null {
   return ROUND_BY_NAME.find(([pattern]) => pattern.test(joined))?.[1] ?? null;
 }
 
-function parseStatus(name: unknown, state: unknown): MatchStatus {
-  const text = `${String(name ?? '')} ${String(state ?? '')}`.toLowerCase();
-  if (/final|post/.test(text)) return 'final';
-  if (/in|live|progress|halftime/.test(text)) return 'in_progress';
-  return 'scheduled';
+const STATUS_BY_STATE: Record<string, MatchStatus> = {
+  pre: 'scheduled',
+  in: 'in_progress',
+  live: 'in_progress',
+  post: 'final',
+};
+
+const STATUS_BY_NAME: Record<string, MatchStatus> = {
+  STATUS_SCHEDULED: 'scheduled',
+  STATUS_IN_PROGRESS: 'in_progress',
+  STATUS_HALFTIME: 'in_progress',
+  STATUS_FINAL: 'final',
+  STATUS_FINAL_PEN: 'final',
+};
+
+const STATUS_BY_ID: Record<string, MatchStatus> = {
+  '1': 'scheduled',
+  '2': 'in_progress',
+  '3': 'final',
+};
+
+function parseStatus(...statusTypes: Array<Record<string, unknown>>): MatchStatus {
+  for (const statusType of statusTypes) {
+    if (statusType.completed === true) return 'final';
+
+    const state = normalizeStatusField(statusType.state);
+    if (state && STATUS_BY_STATE[state]) return STATUS_BY_STATE[state];
+
+    const name = normalizeStatusField(statusType.name);
+    if (name && STATUS_BY_NAME[name]) return STATUS_BY_NAME[name];
+
+    const id = normalizeStatusField(statusType.id);
+    if (id && STATUS_BY_ID[id]) return STATUS_BY_ID[id];
+  }
+
+  return 'in_progress';
+}
+
+function normalizeStatusField(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function findWinnerTeamId(competitors: Record<string, unknown>[]): string | null {

@@ -1,54 +1,68 @@
-import { describe, expect, it } from 'vitest';
-import { parseEspnScoreboard, parseRound } from './parser';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { parseEspnScoreboard } from './parser';
 
-function eventWithRound(id: string, roundName: string) {
+function payloadWithStatus(statusType: Record<string, unknown>) {
   return {
-    id,
-    name: roundName,
-    shortName: roundName,
-    date: '2026-07-01T20:00Z',
-    status: { type: { name: 'STATUS_SCHEDULED', state: 'pre' } },
-    competitions: [
+    events: [
       {
-        competitors: [
-          { homeAway: 'home', score: '0', team: { id: '1', displayName: 'Home' } },
-          { homeAway: 'away', score: '0', team: { id: '2', displayName: 'Away' } },
+        id: '760509',
+        date: '2026-07-07T16:00Z',
+        name: 'Egypt at Argentina',
+        shortName: 'EGY @ ARG',
+        competitions: [
+          {
+            date: '2026-07-07T16:00Z',
+            status: { type: statusType },
+            competitors: [
+              {
+                id: '202',
+                homeAway: 'home',
+                score: '0',
+                winner: false,
+                team: { id: '202', displayName: 'Argentina' },
+              },
+              {
+                id: '2620',
+                homeAway: 'away',
+                score: '0',
+                winner: false,
+                team: { id: '2620', displayName: 'Egypt' },
+              },
+            ],
+          },
         ],
       },
     ],
   };
 }
 
-describe('parseRound', () => {
-  it('recognizes expected ESPN knockout round names in English and Portuguese', () => {
-    expect(parseRound('Round of 16')).toBe('round_of_16');
-    expect(parseRound('Oitavas de final')).toBe('round_of_16');
-    expect(parseRound('Quarterfinal')).toBe('quarterfinal');
-    expect(parseRound('Quartas de final')).toBe('quarterfinal');
-    expect(parseRound('Semifinal')).toBe('semifinal');
-    expect(parseRound('Semifinais')).toBe('semifinal');
-    expect(parseRound('Third Place')).toBe('third_place');
-    expect(parseRound('Terceiro lugar')).toBe('third_place');
-    expect(parseRound('Final')).toBe('final');
-  });
+test('parses ESPN scheduled status from structured fields', () => {
+  const [match] = parseEspnScoreboard(payloadWithStatus({ id: '1', name: 'STATUS_SCHEDULED', state: 'pre', completed: false }));
 
-  it('returns null for unknown rounds', () => {
-    expect(parseRound('Group Stage')).toBeNull();
-  });
+  assert.equal(match.status, 'scheduled');
 });
 
-describe('parseEspnScoreboard', () => {
-  it('discards events with unknown rounds and reports the discard count', () => {
-    const result = parseEspnScoreboard({
-      events: [
-        eventWithRound('known', 'Final'),
-        eventWithRound('unknown', 'Group Stage'),
-      ],
-    });
+test('parses ESPN live status from structured fields', () => {
+  const [match] = parseEspnScoreboard(payloadWithStatus({ id: '2', name: 'STATUS_IN_PROGRESS', state: 'in', completed: false }));
 
-    expect(result.matches).toHaveLength(1);
-    expect(result.matches[0].externalId).toBe('known');
-    expect(result.matches[0].round).toBe('final');
-    expect(result.discardedUnknownRoundCount).toBe(1);
-  });
+  assert.equal(match.status, 'in_progress');
+});
+
+test('parses ESPN halftime status as in progress', () => {
+  const [match] = parseEspnScoreboard(payloadWithStatus({ id: '2', name: 'STATUS_HALFTIME', state: 'in', completed: false }));
+
+  assert.equal(match.status, 'in_progress');
+});
+
+test('parses ESPN final status from completed flag', () => {
+  const [match] = parseEspnScoreboard(payloadWithStatus({ id: '3', name: 'STATUS_FINAL', state: 'post', completed: true }));
+
+  assert.equal(match.status, 'final');
+});
+
+test('maps unknown ESPN status to a safe prediction-blocking status', () => {
+  const [match] = parseEspnScoreboard(payloadWithStatus({ id: '999', name: 'STATUS_DELAYED_UNKNOWN', state: 'mystery', completed: false }));
+
+  assert.equal(match.status, 'in_progress');
 });
