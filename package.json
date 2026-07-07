@@ -14,7 +14,8 @@
     "db:migrate": "drizzle-kit migrate",
     "deploy:worker": "wrangler deploy",
     "deploy:web": "npm run build && wrangler pages deploy dist --project-name psfpredict",
-    "deploy:dry-run": "npm run build && wrangler deploy --dry-run"
+    "deploy:dry-run": "npm run build && wrangler deploy --dry-run",
+    "test": "node --test --import tsx \"shared/**/*.test.ts\""
   },
   "dependencies": {
     "@neondatabase/serverless": "latest",
