@@ -99,6 +99,7 @@ export function getPublicPredictionsForMatch(matchExternalId: string, now = Date
     if (!prediction) return [];
 
     return [{
+      participantKey: getParticipantKey(participant.username),
       displayName: participant.displayName,
       initials: getInitials(participant.displayName),
       matchExternalId,
@@ -223,6 +224,19 @@ function prependFeedEvent(event: Omit<FeedEventSnapshot, 'id' | 'createdAt'>) {
   });
 
   if (feedEvents.length > 100) feedEvents.length = 100;
+}
+
+function getParticipantKey(username: string) {
+  return `participant:${hashString(username)}`;
+}
+
+function hashString(value: string) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 {
