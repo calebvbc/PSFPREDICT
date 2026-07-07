@@ -10,6 +10,8 @@ const ROUND_LABELS: Record<MatchRound, string> = {
 };
 
 const ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+const BUILD_VERSION = import.meta.env.VITE_APP_VERSION ?? import.meta.env.VITE_COMMIT_SHA ?? 'local';
+
 
 type ScoreDraft = { homeScore: string; awayScore: string; saved?: boolean; error?: string };
 type ToastState = { type: 'success' | 'error'; message: string } | null;
@@ -196,8 +198,10 @@ export function App() {
       {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
       {route === '/ranking' && <RankingPage ranking={ranking} finalMatchClosed={finalMatchClosed} leaders={leaders} />}
       {route === '/feed' && <FeedPage feed={feed} />}
-      {!['/', '/palpites', '/ranking', '/feed'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} />}
+      {route === '/health' && <HealthPage buildVersion={BUILD_VERSION} />}
+      {!['/', '/palpites', '/ranking', '/feed', '/health'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} />}
 
+      <BuildFooter buildVersion={BUILD_VERSION} navigate={navigate} />
       {toast && <Toast toast={toast} />}
     </main>
   );
@@ -279,6 +283,38 @@ function RankingPage({ ranking, finalMatchClosed, leaders }: { ranking: RankingE
 
 function FeedPage({ feed }: { feed: FeedEventSnapshot[] }) {
   return <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8"><h1 className="text-4xl font-black tracking-tight">Feed PSF</h1>{feed.length === 0 && <EmptyCard message="Eventos automáticos aparecerão após o recálculo dos jogos." />}{feed.map((event) => <article className="rounded-[1.5rem] bg-psf-surface p-5 shadow-card" key={event.id}><p className="font-black">{event.message}</p><time className="mt-2 block text-sm font-bold text-psf-secondary">{formatKickoff(event.createdAt)}</time></article>)}</section>;
+}
+
+
+function HealthPage({ buildVersion }: { buildVersion: string }) {
+  return (
+    <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8">
+      <h1 className="text-4xl font-black tracking-tight">Health</h1>
+      <div className="rounded-[2rem] bg-psf-surface p-6 shadow-card">
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-psf-blue">Frontend</p>
+        <dl className="mt-4 grid gap-3 text-sm font-bold text-psf-secondary">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-background p-4">
+            <dt>Build</dt>
+            <dd className="font-mono text-psf-text" data-testid="build-version">{buildVersion}</dd>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-background p-4">
+            <dt>Status</dt>
+            <dd className="text-psf-success">ok</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function BuildFooter({ buildVersion, navigate }: { buildVersion: string; navigate: (path: string) => void }) {
+  return (
+    <footer className="mx-auto max-w-5xl px-5 pb-6 pt-2 text-right text-xs font-bold text-psf-muted">
+      <button className="font-mono hover:text-psf-secondary" onClick={() => navigate('/health')} type="button" title="Build version">
+        build {buildVersion.slice(0, 12)}
+      </button>
+    </footer>
+  );
 }
 
 function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onReveal: (matchExternalId: string) => void }) {

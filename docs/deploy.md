@@ -8,7 +8,19 @@ The frontend is a Vite static build deployed to Cloudflare Pages from `dist/`.
 npm run deploy:web
 ```
 
-`web/public/_redirects` keeps the SPA routes (`/`, `/palpites`, `/ranking`, `/feed`) working on direct navigation and forwards `/api/*` to the production Worker at `https://api.psfes.space`.
+`web/public/_redirects` keeps the SPA routes (`/`, `/palpites`, `/ranking`, `/feed`, `/health`) working on direct navigation and forwards `/api/*` to the production Worker at `https://api.psfes.space`.
+
+
+### Build version
+
+The frontend exposes a discreet build identifier in the footer and on `/health`. Vite resolves the value in this order:
+
+1. `VITE_APP_VERSION`
+2. `VITE_COMMIT_SHA`
+3. `CF_PAGES_COMMIT_SHA`
+4. `local`
+
+Cloudflare Pages provides `CF_PAGES_COMMIT_SHA` during Git-based builds. If the project uses direct uploads or another CI flow, set `VITE_COMMIT_SHA` (or `VITE_APP_VERSION`) in the Pages build environment before running `npm run build`.
 
 ## Worker API
 
@@ -57,6 +69,13 @@ npm run build
 npm run lint
 npx wrangler deploy --dry-run
 ```
+
+## Post-deploy check
+
+1. Open `https://app.psfes.space/health`.
+2. Confirm the displayed `Build` value matches the commit SHA deployed by Cloudflare Pages or the expected `VITE_APP_VERSION`.
+3. If the footer is used instead of `/health`, confirm only the shortened build appears discreetly and the main UI remains unchanged.
+4. Smoke test `/`, `/palpites`, `/ranking`, and `/feed` after confirming the build identifier.
 
 ## Production URLs
 
