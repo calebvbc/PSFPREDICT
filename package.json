@@ -1,0 +1,52 @@
+{
+  "name": "psfpredict",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n web,worker -c blue,green \"npm:dev:web\" \"npm:dev:worker\"",
+    "dev:web": "vite --host 0.0.0.0",
+    "dev:worker": "wrangler dev worker/src/index.ts",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "deploy:worker": "wrangler deploy",
+    "deploy:web": "npm run build && wrangler pages deploy dist --project-name psfpredict",
+    "deploy:dry-run": "npm run build && wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "latest",
+    "@vitejs/plugin-react": "latest",
+    "drizzle-orm": "latest",
+    "hono": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "@eslint/js": "latest",
+    "@types/node": "^26.1.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "latest",
+    "concurrently": "latest",
+    "drizzle-kit": "latest",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-react-refresh": "latest",
+    "globals": "latest",
+    "postcss": "latest",
+    "tailwindcss": "^3.4.17",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vite": "latest",
+    "wrangler": "latest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
