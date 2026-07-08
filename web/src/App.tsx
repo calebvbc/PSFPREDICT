@@ -219,11 +219,11 @@ function TopNav({ route, navigate }: { route: string; navigate: (path: string) =
 
   return (
     <nav className="sticky top-0 z-30 border-b border-black/5 bg-psf-background/90 px-5 py-4 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-        <button className="text-left text-sm font-black uppercase tracking-[0.24em] text-psf-blue" onClick={() => navigate('/')} type="button">PSFPREDICT</button>
+      <div className="mx-auto flex max-w-5xl flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <button className="text-left text-sm font-black uppercase tracking-[0.12em] text-psf-blue sm:tracking-[0.24em]" onClick={() => navigate('/')} type="button">PSFPREDICT</button>
         <div className="flex gap-2 overflow-x-auto rounded-full bg-psf-surface p-1 shadow-card">
           {links.map(([href, label]) => (
-            <button className={`rounded-full px-4 py-2 text-sm font-black ${route === href ? 'bg-psf-blue text-white' : 'text-psf-secondary'}`} key={href} onClick={() => navigate(href)} type="button">{label}</button>
+            <button className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-black ${route === href ? 'bg-psf-blue text-white' : 'text-psf-secondary'}`} key={href} onClick={() => navigate(href)} type="button">{label}</button>
           ))}
         </div>
       </div>
