@@ -195,7 +195,7 @@ export function App() {
   }
 
   return (
-    <main className="min-h-screen bg-psf-background pb-28 text-psf-text">
+    <main className={`min-h-screen bg-psf-background text-psf-text ${route === '/palpites' ? 'pb-[calc(8rem+env(safe-area-inset-bottom))]' : 'pb-28'}`}>
       <TopNav route={route} navigate={navigate} />
 
       {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
@@ -271,7 +271,7 @@ function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; mat
         {!props.loadingMatches && props.groupedMatches.length === 0 && <EmptyCard message="Nenhuma partida encontrada agora." />}
         {props.groupedMatches.map((group) => <div className="grid gap-4" key={group.round}><h2 className="text-2xl font-black tracking-tight">{ROUND_LABELS[group.round]}</h2><div className="grid gap-4">{group.matches.map((match) => <MatchCard key={match.externalId} match={match} draft={props.drafts[match.externalId]} now={props.now} publicPredictions={props.matchPredictions[match.externalId]} onChange={props.updateDraft} onReveal={props.loadMatchPredictions} />)}</div></div>)}
       </section>
-      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-psf-surface/95 px-5 py-4 backdrop-blur"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><p className="hidden text-sm font-semibold text-psf-secondary sm:block">Campos inválidos permanecem preenchidos para você corrigir sem perder nada.</p><button className="ml-auto w-full rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card disabled:opacity-60 sm:w-auto" type="button" onClick={props.savePredictions} disabled={props.saving}>{props.saving ? 'Salvando...' : 'Salvar Palpites'}</button></div></footer>
+      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-psf-surface/95 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><p className="hidden text-sm font-semibold text-psf-secondary sm:block">Campos inválidos permanecem preenchidos para você corrigir sem perder nada.</p><button className="ml-auto w-full rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card disabled:opacity-60 sm:w-auto" type="button" onClick={props.savePredictions} disabled={props.saving}>{props.saving ? 'Salvando...' : 'Salvar Palpites'}</button></div></footer>
     </>
   );
 }
