@@ -187,7 +187,7 @@ export function App() {
   }
 
   return (
-    <main className="min-h-screen bg-psf-background pb-28 text-psf-text">
+    <main className={`min-h-screen bg-psf-background text-psf-text ${route === '/palpites' ? 'pb-[calc(8rem+env(safe-area-inset-bottom))]' : 'pb-28'}`}>
       <TopNav route={route} navigate={navigate} />
 
       {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
