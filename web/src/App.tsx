@@ -287,7 +287,20 @@ function RankingPage({ ranking, finalMatchClosed, leaders, loading, error }: { r
 }
 
 function FeedPage({ feed, loading, error }: { feed: FeedEventSnapshot[]; loading: boolean; error?: PublicDataError }) {
-  return <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8"><h1 className="text-4xl font-black tracking-tight">Feed PSF</h1>{error && <ErrorCard message={error} />}{loading && <EmptyCard message="Carregando feed..." />}{!loading && feed.length === 0 && <EmptyCard message="Eventos automáticos aparecerão após o recálculo dos jogos." />}{feed.map((event) => <article className="rounded-[1.5rem] bg-psf-surface p-5 shadow-card" key={event.id}><p className="font-black">{event.message}</p><time className="mt-2 block text-sm font-bold text-psf-secondary">{formatKickoff(event.createdAt)}</time></article>)}</section>;
+  return (
+    <section className="mx-auto grid max-w-3xl gap-4 px-5 py-8">
+      <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Feed PSF</h1>
+      {error && <ErrorCard message={error} />}
+      {loading && <EmptyCard message="Carregando feed..." />}
+      {!loading && feed.length === 0 && <EmptyCard message="Eventos automáticos aparecerão após o recálculo dos jogos." />}
+      {feed.map((event) => (
+        <article className="rounded-[1.5rem] bg-psf-surface p-4 shadow-card sm:p-5" key={event.id}>
+          <p className="break-words text-sm font-black leading-relaxed sm:text-base">{event.message}</p>
+          <time className="mt-2 block text-sm font-bold text-psf-secondary">{formatKickoff(event.createdAt)}</time>
+        </article>
+      ))}
+    </section>
+  );
 }
 
 function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onReveal: (matchExternalId: string) => void }) {
