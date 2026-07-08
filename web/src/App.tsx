@@ -236,11 +236,11 @@ function HomePage({ nextMatch, ranking, feed, finalMatchClosed, leaders, navigat
     <section className="mx-auto grid max-w-5xl gap-6 px-5 py-8">
       {error && <ErrorCard message={error} />}
       {finalMatchClosed && leaders.length > 0 && <ChampionBanner leaders={leaders} />}
-      <div className="rounded-[2rem] bg-psf-surface p-8 shadow-card">
+      <div className="rounded-[2rem] bg-psf-surface p-5 shadow-card sm:p-8">
         <p className="text-sm font-black uppercase tracking-[0.24em] text-psf-blue">Copa do Mundo 2026</p>
-        <h1 className="mt-3 text-5xl font-black tracking-tight">O bolão oficial da PSF no mata-mata.</h1>
-        <p className="mt-4 max-w-2xl text-lg text-psf-secondary">Palpite rápido, ranking automático e suspense até o kickoff. Tudo em uma experiência clara, mobile first e feita para a comunidade.</p>
-        <button className="mt-7 rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card" onClick={() => navigate('/palpites')} type="button">Fazer meus palpites</button>
+        <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">O bolão oficial da PSF no mata-mata.</h1>
+        <p className="mt-4 max-w-2xl text-base text-psf-secondary sm:text-lg">Palpite rápido, ranking automático e suspense até o kickoff. Tudo em uma experiência clara, mobile first e feita para a comunidade.</p>
+        <button className="mt-7 w-full rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card sm:w-auto" onClick={() => navigate('/palpites')} type="button">Fazer meus palpites</button>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <InfoPanel title="Próximo jogo">{loading ? <EmptySmall text="Carregando dados..." /> : nextMatch ? <MiniMatch match={nextMatch} /> : <EmptySmall text="Nenhum jogo aberto agora." />}</InfoPanel>
