@@ -32,7 +32,7 @@ const mockMatch = (overrides = {}) => ({
 });
 
 describe('repository prediction windows and reveal rules', () => {
-  const getMockDb = (mockMatchData: any) => ({
+  const getMockDb = (mockMatchData: unknown) => ({
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
@@ -83,9 +83,10 @@ describe('repository prediction windows and reveal rules', () => {
     const mockDb = {
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockImplementation((condition) => {
+      where: vi.fn().mockImplementation((condition: unknown) => {
         // We know it's a match lookup if there is limit
-        if (condition?.table?.__name === 'matches' || (condition?.config?.table?.__name === 'matches') || condition?.left?.name === 'external_id' || condition?.left?.name === 'id') {
+        const c = condition as Record<string, unknown>;
+        if (c?.table || c?.config || c?.left) {
            return {
               limit: vi.fn().mockResolvedValue([mockMatch()])
            }
@@ -138,26 +139,14 @@ describe('repository ranking', () => {
 
     const mockDb = {
       select: vi.fn().mockReturnThis(),
-      from: vi.fn().mockImplementation(function(this: any, table: any) {
-        if (table?.__name === 'participants') return Promise.resolve(mockParticipants);
-        if (table?.__name === 'predictions') return Promise.resolve(mockPredictions);
+      from: vi.fn().mockImplementation(function(this: unknown, table: unknown) {
+        const t = table as Record<string, unknown>;
+        if (t?.__name === 'participants') return Promise.resolve(mockParticipants);
+        if (t?.__name === 'predictions') return Promise.resolve(mockPredictions);
         return Promise.resolve([]);
       }),
     } as unknown as Database;
 
-    mockDb.select = vi.fn().mockImplementation(() => ({
-       from: vi.fn().mockImplementation((table: any) => {
-         // Just resolve mock data generically in testing based on schema import name
-         if (table?.__name === 'participants' || (table?.id?.table?.__name === 'participants') || table === require('../../../drizzle/schema.ts').participants) return Promise.resolve(mockParticipants);
-         if (table?.__name === 'predictions' || (table?.id?.table?.__name === 'predictions') || table === require('../../../drizzle/schema.ts').predictions) return Promise.resolve(mockPredictions);
-
-         // In this specific ranking function the first call is participants, second is predictions
-         // We can use a side effect to track it
-         return Promise.resolve(mockParticipants);
-       })
-    }));
-
-    // Actually we can simply override the internal schema table checks by providing a side effect
     let callCount = 0;
     mockDb.select = vi.fn().mockImplementation(() => ({
        from: vi.fn().mockImplementation(() => {
