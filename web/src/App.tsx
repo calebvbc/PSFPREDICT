@@ -312,7 +312,21 @@ function ChampionBanner({ leaders }: { leaders: RankingEntrySnapshot[] }) {
 }
 
 function RankingCard({ entry, highlight }: { entry: RankingEntrySnapshot; highlight?: boolean }) {
-  return <article className={`flex items-center gap-4 rounded-[1.75rem] p-5 shadow-card ${highlight ? 'bg-psf-gold' : 'bg-psf-surface'}`}><strong className="text-2xl font-black">#{entry.position}</strong><div className="grid h-12 w-12 place-items-center rounded-full bg-psf-background font-black">{entry.initials}</div><div className="min-w-0 flex-1"><h2 className="truncate text-lg font-black">{entry.displayName}</h2><p className="text-sm font-bold text-psf-secondary">{entry.accuracy}% de aproveitamento · {trendLabel(entry.positionDelta)}</p></div><strong className="text-2xl font-black">{entry.points}</strong></article>;
+  return (
+    <article className={`grid gap-3 rounded-[1.75rem] p-5 shadow-card sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4 ${highlight ? 'bg-psf-gold' : 'bg-psf-surface'}`}>
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <strong className="shrink-0 text-xl font-black sm:text-2xl">#{entry.position}</strong>
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-psf-background font-black sm:h-12 sm:w-12">{entry.initials}</div>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-black">{entry.displayName}</h2>
+        </div>
+      </div>
+      <div className="flex min-w-0 items-center justify-between gap-3 sm:justify-end">
+        <p className="min-w-0 truncate text-sm font-bold text-psf-secondary">{entry.accuracy}% de aproveitamento · {trendLabel(entry.positionDelta)}</p>
+        <strong className="shrink-0 text-xl font-black sm:text-2xl">{entry.points}</strong>
+      </div>
+    </article>
+  );
 }
 
 function RankingMini({ entry }: { entry: RankingEntrySnapshot }) {
