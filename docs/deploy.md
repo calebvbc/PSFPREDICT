@@ -37,3 +37,7 @@ npx wrangler deploy --dry-run
 - API: `https://api.psfes.space`
 
 The Pages redirect rule proxies `/api/*` to `https://api.psfes.space/api/:splat` so the React app can call same-origin `/api/...` paths in production.
+
+## Frontend API base URL
+
+Set `VITE_API_BASE_URL=https://api.psfes.space` in Cloudflare Pages so the React app calls the production Worker directly. The `/api/*` redirect remains as a fallback for same-origin API calls.
