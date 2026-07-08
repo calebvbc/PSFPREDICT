@@ -7,6 +7,11 @@ compatibility_flags = ["nodejs_compat"]
 pattern = "api.psfes.space"
 custom_domain = true
 
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"
+
 [vars]
 ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
 ESPN_KNOCKOUT_DATES = "20260704-20260719"

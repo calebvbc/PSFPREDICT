@@ -27,19 +27,14 @@ npm run deploy:worker
 
 `POST /api/predictions` uses a Cloudflare KV namespace bound as `RATE_LIMIT_KV` to allow one save every 5 seconds per client IP. The Worker stores only a hashed IP key and a short reset timestamp; non-save endpoints such as `GET /api/matches`, `GET /api/ranking`, and `GET /api/feed` do not call this limiter.
 
-Create the namespace once, then add the generated IDs to `wrangler.toml` before deploying:
+Create the namespace once, then replace the placeholder `RATE_LIMIT_KV` IDs in `wrangler.toml` with the generated production and preview namespace IDs before deploying:
 
 ```bash
 wrangler kv namespace create RATE_LIMIT_KV
 wrangler kv namespace create RATE_LIMIT_KV --preview
 ```
 
-```toml
-[[kv_namespaces]]
-binding = "RATE_LIMIT_KV"
-id = "<production namespace id>"
-preview_id = "<preview namespace id>"
-```
+`wrangler.toml` must keep the `RATE_LIMIT_KV` binding so `POST /api/predictions` receives a KV namespace at runtime.
 
 ### Worker secrets
 
