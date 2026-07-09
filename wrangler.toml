@@ -1,0 +1,16 @@
+name = "psfpredict-api"
+main = "worker/src/index.ts"
+compatibility_date = "2026-07-04"
+compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "api.psfes.space"
+custom_domain = true
+
+[vars]
+ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+ESPN_KNOCKOUT_DATES = "20260704-20260719"
+ADMIN_EMAIL = "admin@psf.local"
+
+[triggers]
+crons = ["*/5 * * * *"]
