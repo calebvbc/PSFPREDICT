@@ -6,10 +6,15 @@ const ESPN_DATE_PATTERN = /^\d{8}$/;
 const ESPN_DATE_RANGE_PATTERN = /^(\d{8})-(\d{8})$/;
 
 export async function fetchKnockoutMatches(env: Env) {
-  const dateQueries = expandEspnDateQueries(env.ESPN_KNOCKOUT_DATES);
+  const dateQueries = getEspnDateQueries(env.ESPN_KNOCKOUT_DATES);
   const matchGroups = await Promise.all(dateQueries.map((dates) => fetchKnockoutMatchesForDates(env, dates)));
 
   return dedupeMatches(matchGroups.flat());
+}
+
+export function getEspnDateQueries(dates: string): string[] {
+  const trimmed = dates.trim();
+  return [...new Set([trimmed, ...expandEspnDateQueries(trimmed)])];
 }
 
 export function expandEspnDateQueries(dates: string): string[] {
@@ -33,7 +38,7 @@ export function expandEspnDateQueries(dates: string): string[] {
 async function fetchKnockoutMatchesForDates(env: Env, dates: string) {
   const url = new URL(env.ESPN_SCOREBOARD_URL);
   url.searchParams.set('dates', dates);
-  url.searchParams.set('limit', '100');
+  url.searchParams.set('limit', '950');
   url.searchParams.set('lang', 'pt');
   url.searchParams.set('region', 'br');
 
