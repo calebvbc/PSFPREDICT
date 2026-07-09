@@ -1,46 +1,118 @@
-# PSFPredict
+# PSFPREDICT
 
-PSFPredict is a prediction platform for matches. This repository contains both the frontend application and the backend API service.
+Cloudflare-first prediction app for the PSF community during the FIFA World Cup 2026 knockout stage.
 
-## Tech Stack
+## Runtime
 
-- **Frontend:** React, Vite, Tailwind CSS
-- **Backend:** Cloudflare Workers, Hono
-- **Database:** PostgreSQL (Neon Serverless)
-- **ORM:** Drizzle ORM
+- Frontend: Vite + React + TypeScript deployed to Cloudflare Pages.
+- API: Hono + TypeScript deployed to Cloudflare Workers.
+- Database: PostgreSQL accessed from the Worker with Drizzle ORM and Neon/serverless HTTP driver.
+- Data source: ESPN Scoreboard hidden API.
 
-## Environment Variables
+## Environment variables
 
-For local development and deployment, you need to configure the following environment variables in `.dev.vars` (for Wrangler local) and in Cloudflare settings (for production):
+### Worker
 
-- `DATABASE_URL`: Connection string to your PostgreSQL database (e.g., Neon).
-- `ESPN_SCOREBOARD_URL`: URL to fetch ESPN scoreboard data.
-- `ESPN_KNOCKOUT_DATES`: Dates for knockout matches.
-- `ADMIN_EMAIL`: Administrator email.
-- `ADMIN_TOKEN`: Optional admin authentication token.
+Set these variables/secrets for the Cloudflare Worker:
 
-## Commands
+```bash
+wrangler secret put DATABASE_URL
+```
 
-- `npm install`: Install dependencies.
-- `npm run dev`: Start both frontend (Vite) and backend (Wrangler) locally.
-- `npm run typecheck`: Run TypeScript type checking.
-- `npm run db:generate`: Generate Drizzle migrations based on your schema.
-- `npm run db:migrate`: Apply pending Drizzle migrations to your database.
-- `npm run deploy:worker`: Deploy the Cloudflare Worker to production.
-- `npm run deploy:web`: Build the React app and deploy it to Cloudflare Pages.
+`DATABASE_URL` must be a PostgreSQL connection string compatible with Neon/serverless, for example:
 
-## Running Locally
+```txt
+postgresql://user:password@host/db?sslmode=require
+```
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+The following non-secret vars are configured in `wrangler.toml`:
 
-2. Create a `.dev.vars` file in the `worker/` directory with your local environment variables (specifically `DATABASE_URL`).
+```txt
+ESPN_SCOREBOARD_URL
+ESPN_KNOCKOUT_DATES
+ADMIN_EMAIL
+```
 
-3. Start the development server (runs both Web and Worker):
-   ```bash
-   npm run dev
-   ```
+### Frontend
 
-The backend is powered by Cloudflare Workers and uses PostgreSQL (Neon) with Drizzle ORM for data persistence.
+Set this variable in Cloudflare Pages:
+
+```txt
+VITE_API_BASE_URL=https://api.psfes.space
+```
+
+The Vite frontend reads it at build time, so redeploy Pages after changing it.
+
+## Database commands
+
+Generate migrations from the Drizzle schema:
+
+```bash
+DATABASE_URL="postgresql://user:password@host/db?sslmode=require" npm run db:generate
+```
+
+Apply migrations:
+
+```bash
+DATABASE_URL="postgresql://user:password@host/db?sslmode=require" npm run db:migrate
+```
+
+The current schema lives in `drizzle/schema.ts` and includes participants, matches, predictions, and feed events.
+
+## Local development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run type checks:
+
+```bash
+npm run typecheck
+```
+
+Build the frontend:
+
+```bash
+npm run build
+```
+
+Run the Worker locally after creating `.dev.vars` with `DATABASE_URL`:
+
+```bash
+npm run dev:worker
+```
+
+Run the frontend locally:
+
+```bash
+npm run dev:web
+```
+
+Or run both together:
+
+```bash
+npm run dev
+```
+
+## Deploy
+
+Deploy Worker:
+
+```bash
+npm run deploy:worker
+```
+
+Deploy frontend:
+
+```bash
+npm run deploy:web
+```
+
+Pre-deploy Worker dry run:
+
+```bash
+npx wrangler deploy --dry-run
+```

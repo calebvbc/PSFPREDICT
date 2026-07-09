@@ -80,6 +80,15 @@ com range:
 
 **Consequência:** todas as chamadas do frontend passam por `apiUrl()`, incluindo matches, ranking, feed, participante, revelação e salvamento de palpites.
 
+
+### 2026-07-09 — API usa PostgreSQL/Drizzle no runtime
+
+**Decisão:** substituir o `memory-store` por um repositório Drizzle/PostgreSQL usando o driver Neon/serverless compatível com Cloudflare Workers.
+
+**Motivo:** dados de produção precisam sobreviver a redeploy/restart do Worker e múltiplos isolates.
+
+**Consequência:** `DATABASE_URL` passa a ser obrigatório no Worker, e as rotas públicas preservam os contratos existentes consumidos pelo frontend.
+
 ## Mudanças implementadas
 
 ### Fundação do projeto
@@ -142,17 +151,19 @@ com range:
   - `predictions`
   - `feed_events`
 - Criado `drizzle.config.ts` lendo `DATABASE_URL`.
-- Ainda falta conectar runtime ao banco; o app segue usando `memory-store`.
+- Runtime conectado ao banco via `worker/src/lib/db-store.ts`; `memory-store.ts` foi removido.
 
 ## Backlog de tasks
 
 ### P0 — Conectar PostgreSQL/Drizzle ao runtime
 
-**Status:** Pendente.
+**Status:** Concluída.
 
 **Objetivo:** substituir `worker/src/lib/memory-store.ts` por repositório persistente usando PostgreSQL/Drizzle.
 
 **Critério de aceite:** palpites, participantes, partidas, ranking e feed sobrevivem a redeploy/restart do Worker.
+
+**Evidência:** `worker/src/lib/db.ts` e `worker/src/lib/db-store.ts` implementam acesso PostgreSQL/Drizzle; `memory-store.ts` foi removido.
 
 ### P0 — Proteger endpoints administrativos
 
