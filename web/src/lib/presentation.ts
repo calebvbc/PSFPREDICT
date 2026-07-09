@@ -1,6 +1,7 @@
 import type { MatchRound, MatchSnapshot } from '../../../shared/types/domain';
 
 export const ROUND_LABELS: Record<MatchRound, string> = {
+  round_of_32: 'Dezesseis-avos de Final',
   round_of_16: 'Oitavas de Final',
   quarterfinal: 'Quartas de Final',
   semifinal: 'Semifinais',
@@ -8,7 +9,7 @@ export const ROUND_LABELS: Record<MatchRound, string> = {
   final: 'Final',
 };
 
-export const ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+export const ROUND_ORDER: MatchRound[] = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
 
 export function formatKickoff(value: string) {
   if (!value) return 'Horário a confirmar';
