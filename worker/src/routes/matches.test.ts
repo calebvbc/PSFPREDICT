@@ -49,16 +49,21 @@ describe('matches route cache validation', () => {
     vi.mocked(syncKnockoutMatches).mockReset();
   });
 
-  it('treats cache with round of 16 and expected later knockout rounds as complete', () => {
-    expect(hasCompleteKnockoutCache([
-      match('round_of_16'),
-      match('quarterfinal'),
-      match('semifinal'),
+  it('requires every knockout round and the expected 32 matches before treating cache as complete', () => {
+    const completeCache = [
+      ...Array.from({ length: 16 }, (_, index) => match('round_of_32', `round-of-32-${index}`)),
+      ...Array.from({ length: 8 }, (_, index) => match('round_of_16', `round-of-16-${index}`)),
+      ...Array.from({ length: 4 }, (_, index) => match('quarterfinal', `quarterfinal-${index}`)),
+      ...Array.from({ length: 2 }, (_, index) => match('semifinal', `semifinal-${index}`)),
+      match('third_place'),
       match('final'),
-    ])).toBe(true);
+    ];
+
+    expect(hasCompleteKnockoutCache(completeCache)).toBe(true);
+    expect(hasCompleteKnockoutCache(completeCache.filter((cachedMatch) => cachedMatch.round !== 'round_of_32'))).toBe(false);
   });
 
-  it('syncs again when cached database only contains quarterfinal matches', async () => {
+  it('syncs when cached database only contains quarterfinal matches', async () => {
     const cached = [match('quarterfinal', 'quarterfinal-1')];
     const synced = [match('round_of_16', 'round-of-16-1'), ...cached];
 
