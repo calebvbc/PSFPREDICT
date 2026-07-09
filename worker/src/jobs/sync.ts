@@ -1,14 +1,10 @@
 import type { Env } from '../lib/env';
 import { fetchKnockoutMatches } from '../lib/espn';
-import { createDb } from '../lib/db';
-import { createRepository } from '../lib/repository';
+import { upsertMatches } from '../lib/memory-store';
 
 export async function syncKnockoutMatches(env: Env) {
   const matches = await fetchKnockoutMatches(env);
-
-  const db = createDb(env);
-  const repo = createRepository(db);
-  const result = await repo.upsertMatches(matches);
+  const result = upsertMatches(matches);
 
   return {
     syncedAt: new Date().toISOString(),

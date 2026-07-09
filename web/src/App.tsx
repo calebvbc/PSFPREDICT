@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
 
-// ==========================================
-// 1. CONFIGURAÇÕES E CONSTANTES GERAIS
-// ==========================================
 const ROUND_LABELS: Record<MatchRound, string> = {
   round_of_16: 'Oitavas de Final',
   quarterfinal: 'Quartas de Final',
@@ -14,104 +11,80 @@ const ROUND_LABELS: Record<MatchRound, string> = {
 
 const ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
 
-// Define a URL base da API consultando as variáveis de ambiente do Vite
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'https://api.psfes.space';
 
-// Função utilitária para garantir que as rotas da API estão corretas
 function apiUrl(path: string) {
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-// ==========================================
-// 2. DEFINIÇÃO DE TIPOS (TYPESCRIPT)
-// ==========================================
 type ScoreDraft = { homeScore: string; awayScore: string; saved?: boolean; error?: string };
 type ToastState = { type: 'success' | 'error'; message: string } | null;
 type MatchPredictionsState = Record<string, { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }>;
 type PublicDataError = string;
 
-// ==========================================
-// 3. COMPONENTE PRINCIPAL (APP)
-// ==========================================
 export function App() {
-  // --- Estados de Roteamento e Tempo ---
   const [route, setRoute] = useState(() => window.location.pathname);
-  const [now, setNow] = useState(() => Date.now());
-
-  // --- Estados dos Dados Públicos (API) ---
   const [matches, setMatches] = useState<MatchSnapshot[]>([]);
   const [ranking, setRanking] = useState<RankingEntrySnapshot[]>([]);
   const [feed, setFeed] = useState<FeedEventSnapshot[]>([]);
-  const [loadingMatches, setLoadingMatches] = useState(true);
-  const [publicDataError, setPublicDataError] = useState<PublicDataError>();
-
-  // --- Estados do Utilizador e Rascunhos ---
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [matchPredictions, setMatchPredictions] = useState<MatchPredictionsState>({});
+  const [loadingMatches, setLoadingMatches] = useState(true);
+  const [publicDataError, setPublicDataError] = useState<PublicDataError>();
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const [lookupMessage, setLookupMessage] = useState('');
+  const [now, setNow] = useState(() => Date.now());
+  const debounceRef = useRef<number | null>(null);
 
-  // --- Efeitos Colaterais (useEffect) ---
-
-  // 1. Escuta alterações no histórico do navegador (botão Voltar/Avançar)
   useEffect(() => {
     const onPopState = () => setRoute(window.location.pathname);
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // 2. Atualiza o relógio interno a cada 30 segundos para bloquear jogos que já começaram
-  useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 30_000);
-    return () => window.clearInterval(intervalId);
-  }, []);
-
-  // --- Funções de Navegação e API ---
-
-  // Função para navegar entre páginas sem recarregar o browser
   const navigate = useCallback((path: string) => {
     window.history.pushState({}, '', path);
     setRoute(path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Busca os dados públicos iniciais: jogos, ranking e feed
   const refreshPublicData = useCallback(async () => {
     setPublicDataError(undefined);
-    try {
-      const [matchesResponse, rankingResponse, feedResponse] = await Promise.all([
-        fetch(apiUrl('/api/matches')),
-        fetch(apiUrl('/api/ranking')),
-        fetch(apiUrl('/api/feed?limit=12')),
-      ]);
+    const [matchesResponse, rankingResponse, feedResponse] = await Promise.all([
+      fetch(apiUrl('/api/matches')),
+      fetch(apiUrl('/api/ranking')),
+      fetch(apiUrl('/api/feed?limit=12')),
+    ]);
 
-      const [matchesData, rankingData, feedData] = await Promise.all([
-        matchesResponse.json() as Promise<{ matches?: MatchSnapshot[] }>,
-        rankingResponse.json() as Promise<{ ranking?: RankingEntrySnapshot[] }>,
-        feedResponse.json() as Promise<{ events?: FeedEventSnapshot[] }>,
-      ]);
+    const [matchesData, rankingData, feedData] = await Promise.all([
+      matchesResponse.json() as Promise<{ matches?: MatchSnapshot[] }>,
+      rankingResponse.json() as Promise<{ ranking?: RankingEntrySnapshot[] }>,
+      feedResponse.json() as Promise<{ events?: FeedEventSnapshot[] }>,
+    ]);
 
-      setMatches(matchesData.matches ?? []);
-      setRanking(rankingData.ranking ?? []);
-      setFeed(feedData.events ?? []);
-    } catch {
-      setPublicDataError('Não foi possível carregar os dados públicos.');
-    } finally {
-      setLoadingMatches(false);
-    }
+    setMatches(matchesData.matches ?? []);
+    setRanking(rankingData.ranking ?? []);
+    setFeed(feedData.events ?? []);
   }, []);
 
-  // Executa a busca de dados assim que a aplicação abre
   useEffect(() => {
-    refreshPublicData();
+    refreshPublicData()
+      .catch(() => {
+        setPublicDataError('Não foi possível carregar os dados públicos.');
+      })
+      .finally(() => setLoadingMatches(false));
   }, [refreshPublicData]);
 
-  // Busca um participante pelo username para carregar os palpites já feitos
-  const lookupParticipant = useCallback(async (targetUsername: string) => {
-    const normalized = targetUsername.trim();
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const lookupParticipant = useCallback(async (nextUsername = username) => {
+    const normalized = nextUsername.trim();
     if (!normalized) return;
 
     try {
@@ -139,32 +112,23 @@ export function App() {
     } catch {
       setLookupMessage('Não foi possível buscar esse username agora.');
     }
-  }, []);
+  }, [username]);
 
-  // Efeito "Debounce": Só busca o utilizador se ele parar de digitar por 450 milissegundos
   useEffect(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
     const normalized = username.trim();
-    if (!normalized) {
-      setLookupMessage('');
-      return;
-    }
+    if (!normalized) return;
 
-    const timeoutId = window.setTimeout(() => {
+    debounceRef.current = window.setTimeout(() => {
       void lookupParticipant(normalized);
     }, 450);
+  }, [lookupParticipant, username]);
 
-    return () => window.clearTimeout(timeoutId); // Limpa o temporizador se o utilizador continuar a digitar
-  }, [username, lookupParticipant]);
-
-  // --- Lógica de Derivação de Dados ---
   const groupedMatches = useMemo(() => groupMatches(matches), [matches]);
   const nextMatch = useMemo(() => matches.find((match) => match.status === 'scheduled' && new Date(match.kickoffAt).getTime() > now), [matches, now]);
   const finalMatchClosed = matches.some((match) => match.round === 'final' && match.status === 'final');
   const leaders = ranking.length > 0 ? ranking.filter((entry) => entry.points === ranking[0].points) : [];
 
-  // --- Funções de Manipulação de Formulário ---
-
-  // Atualiza um rascunho enquanto o utilizador digita um placar
   function updateDraft(matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) {
     setDrafts((current) => ({
       ...current,
@@ -177,7 +141,6 @@ export function App() {
     }));
   }
 
-  // Carrega palpites públicos de outros jogadores para um jogo já encerrado/bloqueado
   async function loadMatchPredictions(matchExternalId: string) {
     setMatchPredictions((current) => ({ ...current, [matchExternalId]: { loading: true } }));
     try {
@@ -190,7 +153,6 @@ export function App() {
     }
   }
 
-  // Valida e guarda os palpites na API
   async function savePredictions() {
     setToast(null);
     const participantError = validateParticipant(displayName, username);
@@ -237,27 +199,20 @@ export function App() {
     }
   }
 
-  // --- Renderização Principal (Roteamento Manual) ---
   return (
     <main className="min-h-screen bg-psf-background pb-28 text-psf-text">
       <TopNav route={route} navigate={navigate} />
 
-      {/* Condicionais para renderizar cada página com base no estado "route" */}
       {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
-      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={() => lookupParticipant(username)} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
+      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
       {route === '/ranking' && <RankingPage ranking={ranking} finalMatchClosed={finalMatchClosed} leaders={leaders} loading={loadingMatches} error={publicDataError} />}
       {route === '/feed' && <FeedPage feed={feed} loading={loadingMatches} error={publicDataError} />}
       {!['/', '/palpites', '/ranking', '/feed'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
 
-      {/* Mostra avisos de sucesso/erro */}
       {toast && <Toast toast={toast} />}
     </main>
   );
 }
-
-// ==========================================
-// 4. COMPONENTES DE INTERFACE (UI)
-// ==========================================
 
 function TopNav({ route, navigate }: { route: string; navigate: (path: string) => void }) {
   const links = [
@@ -301,7 +256,7 @@ function HomePage({ nextMatch, ranking, feed, finalMatchClosed, leaders, navigat
   );
 }
 
-function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; matches: MatchSnapshot[] }>; drafts: Record<string, ScoreDraft>; displayName: string; username: string; lookupMessage: string; loadingMatches: boolean; matchPredictions: MatchPredictionsState; now: number; saving: boolean; setDisplayName: (value: string) => void; setUsername: (value: string) => void; lookupParticipant: () => void; updateDraft: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; loadMatchPredictions: (matchExternalId: string) => void; savePredictions: () => void }) {
+function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; matches: MatchSnapshot[] }>; drafts: Record<string, ScoreDraft>; displayName: string; username: string; lookupMessage: string; loadingMatches: boolean; matchPredictions: MatchPredictionsState; now: number; saving: boolean; setDisplayName: (value: string) => void; setUsername: (value: string) => void; lookupParticipant: (username?: string) => void; updateDraft: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; loadMatchPredictions: (matchExternalId: string) => void; savePredictions: () => void }) {
   return (
     <>
       <header className="mx-auto max-w-5xl px-5 py-8">
@@ -400,10 +355,6 @@ function ErrorCard({ message }: { message: string }) {
 function Toast({ toast }: { toast: Exclude<ToastState, null> }) {
   return <div className={`fixed bottom-24 left-1/2 z-30 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl px-5 py-4 text-center font-black shadow-card ${toast.type === 'success' ? 'bg-psf-success text-white' : 'bg-psf-danger text-white'}`}>{toast.message}</div>;
 }
-
-// ==========================================
-// 5. FUNÇÕES AUXILIARES (HELPERS)
-// ==========================================
 
 function validateParticipant(displayName: string, username: string) {
   if (!displayName.trim()) return 'Informe seu nome de exibição.';

@@ -44,10 +44,9 @@
     "typescript": "latest",
     "typescript-eslint": "latest",
     "vite": "latest",
-    "vitest": "^4.1.10",
     "wrangler": "latest"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   }
 }

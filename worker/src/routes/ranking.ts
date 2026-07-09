@@ -1,22 +1,11 @@
 import { Hono } from 'hono';
 import type { Env } from '../lib/env';
-import { createDb } from '../lib/db';
-import { createRepository } from '../lib/repository';
+import { forceRecalculateRanking, getFeedEvents, getRanking } from '../lib/memory-store';
 
 export const rankingRoute = new Hono<{ Bindings: Env }>()
-  .get('/ranking', async (c) => {
-    const db = createDb(c.env);
-    const repo = createRepository(db);
-    return c.json({ ranking: await repo.getRanking() });
-  })
-  .post('/ranking/recalculate', async (c) => {
-    const db = createDb(c.env);
-    const repo = createRepository(db);
-    return c.json({ ranking: await repo.forceRecalculateRanking() });
-  })
-  .get('/feed', async (c) => {
-    const db = createDb(c.env);
-    const repo = createRepository(db);
+  .get('/ranking', (c) => c.json({ ranking: getRanking() }))
+  .post('/ranking/recalculate', (c) => c.json({ ranking: forceRecalculateRanking() }))
+  .get('/feed', (c) => {
     const limit = Number(c.req.query('limit') ?? 30);
-    return c.json({ events: await repo.getFeedEvents(Number.isFinite(limit) ? limit : 30) });
+    return c.json({ events: getFeedEvents(Number.isFinite(limit) ? limit : 30) });
   });

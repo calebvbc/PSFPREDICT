@@ -1,19 +1,13 @@
 import { Hono } from 'hono';
 import type { Env } from '../lib/env';
-import { createDb } from '../lib/db';
-import { createRepository } from '../lib/repository';
+import { syncKnockoutMatches } from '../jobs/sync';
+import { listMatches } from '../lib/memory-store';
 
 export const matchesRoute = new Hono<{ Bindings: Env }>()
   .get('/matches', async (c) => {
-    const db = createDb(c.env);
-    const repo = createRepository(db);
+    const cached = listMatches();
+    if (cached.length > 0) return c.json({ matches: cached, source: 'cache' });
 
-    try {
-      const matches = await repo.listMatches();
-      return c.json({ matches, source: 'db' });
-    } catch (error) {
-      return c.json({
-        error: error instanceof Error ? error.message : 'Não foi possível buscar as partidas.',
-      }, 500);
-    }
+    const synced = await syncKnockoutMatches(c.env);
+    return c.json({ matches: synced.matches, source: 'espn' });
   });
