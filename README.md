@@ -17,6 +17,7 @@ Set these variables/secrets for the Cloudflare Worker:
 
 ```bash
 wrangler secret put DATABASE_URL
+wrangler secret put ADMIN_TOKEN
 ```
 
 `DATABASE_URL` must be a PostgreSQL connection string compatible with Neon/serverless, for example:
@@ -24,6 +25,8 @@ wrangler secret put DATABASE_URL
 ```txt
 postgresql://user:password@host/db?sslmode=require
 ```
+
+`ADMIN_TOKEN` protects administrative endpoints such as `POST /api/ranking/recalculate`. Administrative calls must send it in the `x-admin-token` header.
 
 The following non-secret vars are configured in `wrangler.toml`:
 
