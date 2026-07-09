@@ -66,8 +66,30 @@ describe('parseEspnScoreboard', () => {
     expect(match).toMatchObject({ round: 'round_of_16' });
   });
 
-  it('continues discarding events with unknown rounds', () => {
-    const { match, discardedUnknownRound } = parseEspnScoreboardEvent(createEvent('Group Stage'));
+  it('uses the 2026 knockout kickoff date when ESPN placeholder names mention the previous round', () => {
+    const { match, discardedUnknownRound } = parseEspnScoreboardEvent({
+      id: 'semifinal-placeholder',
+      name: 'Vencedor quartas de final (1) vs Vencedor quartas de final (2)',
+      date: '2026-07-14T19:00Z',
+      status: { type: { name: 'STATUS_SCHEDULED', state: 'pre' } },
+      competitions: [{
+        competitors: [
+          { homeAway: 'home', score: '', team: { id: 'home', displayName: 'Vencedor quartas de final (1)' } },
+          { homeAway: 'away', score: '', team: { id: 'away', displayName: 'Vencedor quartas de final (2)' } },
+        ],
+      }],
+    });
+
+    expect(discardedUnknownRound).toBe(false);
+    expect(match).toMatchObject({
+      round: 'semifinal',
+      homeTeam: { name: 'A definir', isPlaceholder: true },
+      awayTeam: { name: 'A definir', isPlaceholder: true },
+    });
+  });
+
+  it('continues discarding events with unknown rounds outside the known knockout dates', () => {
+    const { match, discardedUnknownRound } = parseEspnScoreboardEvent({ ...createEvent('Group Stage'), date: '2026-06-20T20:00:00.000Z' });
 
     expect(match).toBeNull();
     expect(discardedUnknownRound).toBe(true);
