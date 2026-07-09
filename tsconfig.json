@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -15,8 +19,25 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["@cloudflare/workers-types", "node", "vite/client"]
+    "types": [
+      "@cloudflare/workers-types",
+      "node",
+      "vite/client"
+    ]
   },
-  "include": ["web/src", "worker/src", "shared", "drizzle", "*.config.ts", "vite.config.ts"],
-  "references": []
+  "include": [
+    "web/src",
+    "worker/src",
+    "shared",
+    "drizzle",
+    "*.config.ts",
+    "vite.config.ts"
+  ],
+  "references": [],
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "vitest.config.ts",
+    "worker/src/lib/repository.ts"
+  ]
 }

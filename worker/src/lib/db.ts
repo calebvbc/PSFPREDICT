@@ -4,6 +4,7 @@ import * as schema from '../../../drizzle/schema';
 import type { Env } from './env';
 
 export type Db = ReturnType<typeof createDb>;
+export type Database = Db;
 
 export function createDb(env: Env) {
   if (!env.DATABASE_URL) {

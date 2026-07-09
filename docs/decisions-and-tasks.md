@@ -273,3 +273,17 @@ npx wrangler deploy --dry-run
 - `web/src/App.tsx` exibe e ordena o Round of 32 antes das Oitavas.
 
 **Nova task registrada:** validar em produção se `GET /api/sync/preview` retorna todos os jogos esperados do range `20260628-20260719` e se `GET /api/matches` persiste também os jogos do Round of 32.
+
+### 2026-07-09 — Cloudflare Pages build não deve compilar testes/unit configs
+
+**Decisão:** o `tsconfig.json` usado por `npm run build` passa a excluir arquivos `*.test.ts`, `*.test.tsx`, `vitest.config.ts` e o artefato legado `worker/src/lib/repository.ts`.
+
+**Motivo:** o deploy do Cloudflare Pages roda `tsc -p tsconfig.json --noEmit` antes do Vite build. Esse comando estava tentando compilar testes e arquivos legados que não fazem parte do runtime de produção, gerando erros de tipos de Vitest e de código antigo.
+
+**Mudanças aplicadas:**
+
+- `tsconfig.json` ganhou `exclude` para testes/config de Vitest e repository legado.
+- `worker/src/lib/db.ts` exporta `Database` como alias de compatibilidade para código legado que ainda importe esse tipo.
+- `worker/src/lib/env.ts` declara `ADMIN_TOKEN` opcional para middleware/admin legado não quebrar typecheck se presente no deploy.
+
+**Nova task registrada:** separar futuramente `tsconfig.app.json` e `tsconfig.test.json`, para manter build de produção e typecheck de testes com responsabilidades claras.
