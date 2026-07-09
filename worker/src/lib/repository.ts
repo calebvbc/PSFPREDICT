@@ -3,24 +3,6 @@ import { feedEvents, matches, participants, predictions } from '../../../drizzle
 import { scoreExactPrediction } from '../../../shared/scoring/exact-score';
 import type { FeedEventSnapshot, MatchSnapshot, ParticipantPredictionsSnapshot, PredictionSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../../shared/types/domain';
 import type { Database } from './db';
-type SyncStatus = 'never' | 'success' | 'error';
-
-interface SyncOperationalState {
-  lastSyncAt: string | null;
-  lastSyncStatus: SyncStatus;
-  lastSyncError: string | null;
-  lastFetchedMatchCount: number;
-  matchCount: number;
-}
-
-const syncOperationalState: SyncOperationalState = {
-  lastSyncAt: null,
-  lastSyncStatus: 'never',
-  lastSyncError: null,
-  lastFetchedMatchCount: 0,
-  matchCount: 0,
-};
-
 type DbMatch = typeof matches.$inferSelect;
 type DbParticipant = typeof participants.$inferSelect;
 type DbPrediction = typeof predictions.$inferSelect;
@@ -36,14 +18,11 @@ export function createRepository(db: Database) {
     getFeedEvents: (limit?: number) => getFeedEvents(db, limit),
     getPublicPredictionsForMatch: (matchExternalId: string, now?: number) => getPublicPredictionsForMatch(db, matchExternalId, now),
     forceRecalculateRanking: () => forceRecalculateRanking(db),
-    getSyncOperationalState: () => getSyncOperationalState(db),
-    recordSyncSuccess: (args: { syncedAt: string; fetchedMatchCount: number }) => recordSyncSuccess(db, args),
-    recordSyncFailure: (args: { syncedAt: string; error: string }) => recordSyncFailure(db, args),
   };
 }
 
 export async function getParticipantByUsername(db: Database, username: string) {
-  const normalized = username.toLowerCase();
+  const normalized = username.trim().toLowerCase();
   const [participant] = await db.select().from(participants).where(eq(participants.usernameNormalized, normalized)).limit(1);
   if (!participant) return null;
 
@@ -62,7 +41,7 @@ export async function listMatches(db: Database) {
 }
 
 export async function upsertParticipantPredictions(db: Database, args: { displayName: string; username: string; predictions: Array<Omit<PredictionSnapshot, 'savedAt' | 'points'>> }) {
-  const normalizedUsername = args.username.toLowerCase();
+  const normalizedUsername = args.username.trim().toLowerCase();
   const now = new Date();
 
   const [participant] = await db.insert(participants).values({
@@ -174,7 +153,7 @@ export async function getPublicPredictionsForMatch(db: Database, matchExternalId
     .where(eq(predictions.matchId, matchRow.id));
 
   return { ok: true, predictions: rows.map(({ participant, prediction }) => ({
-    participantKey: getParticipantKey(participant.usernameNormalized),
+
     displayName: participant.displayName,
     initials: getInitials(participant.displayName),
     matchExternalId,
@@ -189,26 +168,6 @@ export async function forceRecalculateRanking(db: Database) {
   const finalMatches = (await db.select().from(matches).where(eq(matches.status, 'final'))).map(toMatchSnapshot);
   for (const match of finalMatches) await rescorePredictionsForMatch(db, match);
   return getRanking(db);
-}
-
-async function getSyncOperationalState(db: Database): Promise<SyncOperationalState> {
-  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(matches);
-  return { ...syncOperationalState, matchCount: count };
-}
-
-async function recordSyncSuccess(db: Database, args: { syncedAt: string; fetchedMatchCount: number }) {
-  syncOperationalState.lastSyncAt = args.syncedAt;
-  syncOperationalState.lastSyncStatus = 'success';
-  syncOperationalState.lastSyncError = null;
-  syncOperationalState.lastFetchedMatchCount = args.fetchedMatchCount;
-  return getSyncOperationalState(db);
-}
-
-async function recordSyncFailure(db: Database, args: { syncedAt: string; error: string }) {
-  syncOperationalState.lastSyncAt = args.syncedAt;
-  syncOperationalState.lastSyncStatus = 'error';
-  syncOperationalState.lastSyncError = args.error;
-  return getSyncOperationalState(db);
 }
 
 async function rescorePredictionsForMatch(db: Database, match: MatchSnapshot) {
@@ -285,11 +244,3 @@ function getInitials(displayName: string) {
   return displayName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('') || '?';
 }
 
-function getParticipantKey(username: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < username.length; index += 1) {
-    hash ^= username.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return `participant:${(hash >>> 0).toString(16).padStart(8, '0')}`;
-}
