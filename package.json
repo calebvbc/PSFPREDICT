@@ -46,6 +46,7 @@
     "typescript": "latest",
     "typescript-eslint": "latest",
     "vite": "latest",
+    "vitest": "latest",
     "wrangler": "latest"
   },
   "engines": {
