@@ -55,7 +55,7 @@ https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard
 com range:
 
 ```txt
-20260704-20260719
+20260628-20260719
 ```
 
 **Consequência:** o parser em `shared/espn/parser.ts` normaliza times, status, placeholders e placares para o domínio interno.
@@ -257,3 +257,19 @@ npm run build
 npm run lint
 npx wrangler deploy --dry-run
 ```
+
+### 2026-07-09 — API captura o mata-mata completo a partir do Round of 32
+
+**Decisão:** ampliar o escopo operacional da sincronização ESPN para incluir também o Round of 32, usando `ESPN_KNOCKOUT_DATES=20260628-20260719`.
+
+**Motivo:** o app precisa conseguir capturar o histórico completo do mata-mata, não apenas Oitavas até Final. O escopo inicial filtrava `round_of_32` no parser e buscava somente `20260704-20260719`, então jogos anteriores do mata-mata não entravam no banco.
+
+**Mudanças aplicadas:**
+
+- `shared/types/domain.ts` agora inclui `round_of_32` em `MatchRound`.
+- `shared/espn/parser.ts` agora reconhece `Round of 32` como rodada válida.
+- `drizzle/schema.ts` e a migration `0001_sleepy_vapor.sql` adicionam o valor `round_of_32` ao enum `match_round`.
+- `wrangler.toml` e `.env.example` passam a usar `20260628-20260719`.
+- `web/src/App.tsx` exibe e ordena o Round of 32 antes das Oitavas.
+
+**Nova task registrada:** validar em produção se `GET /api/sync/preview` retorna todos os jogos esperados do range `20260628-20260719` e se `GET /api/matches` persiste também os jogos do Round of 32.

@@ -1,6 +1,6 @@
 import { boolean, index, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
-export const matchRound = pgEnum('match_round', ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final']);
+export const matchRound = pgEnum('match_round', ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final']);
 export const matchStatus = pgEnum('match_status', ['scheduled', 'in_progress', 'final']);
 
 export const participants = pgTable('participants', {

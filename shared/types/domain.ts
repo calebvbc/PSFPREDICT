@@ -1,4 +1,4 @@
-export type MatchRound = 'round_of_16' | 'quarterfinal' | 'semifinal' | 'third_place' | 'final';
+export type MatchRound = 'round_of_32' | 'round_of_16' | 'quarterfinal' | 'semifinal' | 'third_place' | 'final';
 
 export type MatchStatus = 'scheduled' | 'in_progress' | 'final';
 

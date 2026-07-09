@@ -1,6 +1,6 @@
 {
-  "id": "9dcf55b8-6c7a-4894-9c66-edd25bfce51f",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "32722fd0-48f8-48eb-910e-cce845245eed",
+  "prevId": "9dcf55b8-6c7a-4894-9c66-edd25bfce51f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -392,6 +392,7 @@
       "name": "match_round",
       "schema": "public",
       "values": [
+        "round_of_32",
         "round_of_16",
         "quarterfinal",
         "semifinal",

@@ -11,7 +11,7 @@ A V1 is Cloudflare-first and keeps TypeScript as the only mandatory language acr
 
 ## Data source
 
-The ESPN Scoreboard endpoint is called with `dates=20260704-20260719`, `limit=100`, `lang=pt`, and `region=br` to cover the knockout V1 range in one request.
+The ESPN Scoreboard endpoint is called with `dates=20260628-20260719`, `limit=100`, `lang=pt`, and `region=br` to cover the full knockout range from Round of 32 through the Final in one request.
 
 ## V1 auth recommendation
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
 
 const ROUND_LABELS: Record<MatchRound, string> = {
+  round_of_32: 'Round of 32',
   round_of_16: 'Oitavas de Final',
   quarterfinal: 'Quartas de Final',
   semifinal: 'Semifinais',
@@ -9,7 +10,7 @@ const ROUND_LABELS: Record<MatchRound, string> = {
   final: 'Final',
 };
 
-const ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+const ROUND_ORDER: MatchRound[] = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'https://api.psfes.space';
 

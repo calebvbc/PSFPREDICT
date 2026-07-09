@@ -1,0 +1,1 @@
+ALTER TYPE "public"."match_round" ADD VALUE 'round_of_32' BEFORE 'round_of_16';

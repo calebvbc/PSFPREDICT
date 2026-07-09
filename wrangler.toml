@@ -9,7 +9,7 @@ custom_domain = true
 
 [vars]
 ESPN_SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
-ESPN_KNOCKOUT_DATES = "20260704-20260719"
+ESPN_KNOCKOUT_DATES = "20260628-20260719"
 ADMIN_EMAIL = "admin@psf.local"
 
 [triggers]

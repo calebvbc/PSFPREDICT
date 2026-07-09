@@ -1,6 +1,7 @@
 import type { MatchRound, MatchSnapshot, MatchStatus, TeamSnapshot } from '../types/domain';
 
 const ROUND_BY_NAME: Array<[RegExp, MatchRound]> = [
+  [/round of 32|32 avos|fase de 32/i, 'round_of_32'],
   [/round of 16|oitavas/i, 'round_of_16'],
   [/quarter|quartas/i, 'quarterfinal'],
   [/semi/i, 'semifinal'],
