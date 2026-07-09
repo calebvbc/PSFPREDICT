@@ -2,7 +2,7 @@ import type { MatchRound, MatchSnapshot, MatchStatus, TeamSnapshot } from '../ty
 
 const ROUND_BY_NAME: Array<[RegExp, MatchRound]> = [
   [/round of 32|32 avos|fase de 32/i, 'round_of_32'],
-  [/round of 16|oitavas/i, 'round_of_16'],
+  [/round\s+of\s+16|oitav[ao]s|\b8\s*(?:ªs|as|vos)\b|last\s+16/i, 'round_of_16'],
   [/quarter|quartas/i, 'quarterfinal'],
   [/semi/i, 'semifinal'],
   [/third|3rd|terceiro|3º/i, 'third_place'],
