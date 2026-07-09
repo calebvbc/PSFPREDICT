@@ -11,6 +11,7 @@ const ROUND_LABELS: Record<MatchRound, string> = {
 };
 
 const ROUND_ORDER: MatchRound[] = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+const PREDICTION_ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'https://api.psfes.space';
 
@@ -125,7 +126,8 @@ export function App() {
     }, 450);
   }, [lookupParticipant, username]);
 
-  const groupedMatches = useMemo(() => groupMatches(matches), [matches]);
+  const predictionMatches = useMemo(() => matches.filter((match) => PREDICTION_ROUND_ORDER.includes(match.round)), [matches]);
+  const groupedMatches = useMemo(() => groupMatches(predictionMatches, PREDICTION_ROUND_ORDER), [predictionMatches]);
   const nextMatch = useMemo(() => matches.find((match) => match.status === 'scheduled' && new Date(match.kickoffAt).getTime() > now), [matches, now]);
   const finalMatchClosed = matches.some((match) => match.round === 'final' && match.status === 'final');
   const leaders = ranking.length > 0 ? ranking.filter((entry) => entry.points === ranking[0].points) : [];
@@ -162,7 +164,7 @@ export function App() {
       return;
     }
 
-    const validation = validateDrafts(matches, drafts);
+    const validation = validateDrafts(predictionMatches, drafts);
     setDrafts(validation.nextDrafts);
     if (validation.errorCount > 0) {
       setToast({ type: 'error', message: 'Revise os placares destacados antes de salvar.' });
@@ -394,8 +396,8 @@ function validateDrafts(matches: MatchSnapshot[], drafts: Record<string, ScoreDr
   return { errorCount, predictions, nextDrafts };
 }
 
-function groupMatches(matches: MatchSnapshot[]) {
-  return ROUND_ORDER.map((round) => ({
+function groupMatches(matches: MatchSnapshot[], roundOrder: MatchRound[] = ROUND_ORDER) {
+  return roundOrder.map((round) => ({
     round,
     matches: matches.filter((match) => match.round === round).sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime()),
   })).filter((group) => group.matches.length > 0);
