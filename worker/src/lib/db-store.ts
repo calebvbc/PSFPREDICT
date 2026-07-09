@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { matches, participants, predictions, feedEvents } from '../../../drizzle/schema';
 import { scoreExactPrediction } from '../../../shared/scoring/exact-score';
 import type { FeedEventSnapshot, MatchSnapshot, ParticipantPredictionsSnapshot, PredictionSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../../shared/types/domain';
@@ -111,30 +111,51 @@ export async function upsertParticipantPredictions(env: Env, args: {
 
 export async function upsertMatches(env: Env, nextMatches: MatchSnapshot[]) {
   const db = createDb(env);
-  const finalizedMatches: MatchRow[] = [];
+  if (nextMatches.length === 0) {
+    return { matchCount: (await listMatches(env)).length, finalizedMatchCount: 0 };
+  }
 
-  for (const nextMatch of nextMatches) {
-    const previous = await db.query.matches.findFirst({ where: eq(matches.externalId, nextMatch.externalId) });
-    const values = matchValues(nextMatch);
-    const [upserted] = await db
-      .insert(matches)
-      .values(values)
-      .onConflictDoUpdate({
-        target: matches.externalId,
-        set: { ...values, updatedAt: new Date() },
-      })
-      .returning();
+  const externalIds = nextMatches.map((match) => match.externalId);
+  const previousMatches = await db.select().from(matches).where(inArray(matches.externalId, externalIds));
+  const previousByExternalId = new Map(previousMatches.map((match) => [match.externalId, match]));
+  const now = new Date();
+  const values = nextMatches.map((match) => matchValues(match, now));
+  const upsertedMatches = await db
+    .insert(matches)
+    .values(values)
+    .onConflictDoUpdate({
+      target: matches.externalId,
+      set: {
+        round: sql`excluded.round`,
+        kickoffAt: sql`excluded.kickoff_at`,
+        status: sql`excluded.status`,
+        homeTeamId: sql`excluded.home_team_id`,
+        homeTeamName: sql`excluded.home_team_name`,
+        homeTeamLogoUrl: sql`excluded.home_team_logo_url`,
+        homeTeamColor: sql`excluded.home_team_color`,
+        homeTeamPlaceholder: sql`excluded.home_team_placeholder`,
+        awayTeamId: sql`excluded.away_team_id`,
+        awayTeamName: sql`excluded.away_team_name`,
+        awayTeamLogoUrl: sql`excluded.away_team_logo_url`,
+        awayTeamColor: sql`excluded.away_team_color`,
+        awayTeamPlaceholder: sql`excluded.away_team_placeholder`,
+        homeScore: sql`excluded.home_score`,
+        awayScore: sql`excluded.away_score`,
+        winnerTeamId: sql`excluded.winner_team_id`,
+        updatedAt: now,
+      },
+    })
+    .returning();
 
-    const becameFinal = upserted.status === 'final' && previous?.status !== 'final';
-    const finalScoreChanged = upserted.status === 'final'
-      && previous?.status === 'final'
-      && (previous.homeScore !== upserted.homeScore || previous.awayScore !== upserted.awayScore);
+  const finalizedMatches = upsertedMatches.filter((upserted) => {
+    const previous = previousByExternalId.get(upserted.externalId);
+    if (!previous || upserted.status !== 'final') return false;
+    return previous.status !== 'final' || previous.homeScore !== upserted.homeScore || previous.awayScore !== upserted.awayScore;
+  });
 
-    if (becameFinal || finalScoreChanged) {
-      finalizedMatches.push(upserted);
-      await rescorePredictionsForMatch(env, upserted);
-      await generateFeedForFinalizedMatch(env, upserted);
-    }
+  for (const finalizedMatch of finalizedMatches) {
+    await rescorePredictionsForMatch(env, finalizedMatch);
+    await generateFeedForFinalizedMatch(env, finalizedMatch);
   }
 
   return {
@@ -318,7 +339,7 @@ function matchSnapshot(match: MatchRow): MatchSnapshot {
   };
 }
 
-function matchValues(match: MatchSnapshot): typeof matches.$inferInsert {
+function matchValues(match: MatchSnapshot, updatedAt = new Date()): typeof matches.$inferInsert {
   return {
     externalId: match.externalId,
     round: match.round,
@@ -337,7 +358,7 @@ function matchValues(match: MatchSnapshot): typeof matches.$inferInsert {
     homeScore: match.homeScore,
     awayScore: match.awayScore,
     winnerTeamId: match.winnerTeamId,
-    updatedAt: new Date(),
+    updatedAt,
   };
 }
 

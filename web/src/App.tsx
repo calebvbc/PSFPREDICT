@@ -11,6 +11,7 @@ const ROUND_LABELS: Record<MatchRound, string> = {
 };
 
 const ROUND_ORDER: MatchRound[] = ['round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
+const PREDICTION_ROUND_ORDER: MatchRound[] = ['round_of_16', 'quarterfinal', 'semifinal', 'third_place', 'final'];
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'https://api.psfes.space';
 
@@ -125,7 +126,8 @@ export function App() {
     }, 450);
   }, [lookupParticipant, username]);
 
-  const groupedMatches = useMemo(() => groupMatches(matches), [matches]);
+  const predictionMatches = useMemo(() => matches.filter((match) => PREDICTION_ROUND_ORDER.includes(match.round)), [matches]);
+  const groupedMatches = useMemo(() => groupMatches(predictionMatches, PREDICTION_ROUND_ORDER), [predictionMatches]);
   const nextMatch = useMemo(() => matches.find((match) => match.status === 'scheduled' && new Date(match.kickoffAt).getTime() > now), [matches, now]);
   const finalMatchClosed = matches.some((match) => match.round === 'final' && match.status === 'final');
   const leaders = ranking.length > 0 ? ranking.filter((entry) => entry.points === ranking[0].points) : [];
@@ -162,7 +164,7 @@ export function App() {
       return;
     }
 
-    const validation = validateDrafts(matches, drafts);
+    const validation = validateDrafts(predictionMatches, drafts);
     setDrafts(validation.nextDrafts);
     if (validation.errorCount > 0) {
       setToast({ type: 'error', message: 'Revise os placares destacados antes de salvar.' });
@@ -260,24 +262,24 @@ function HomePage({ nextMatch, ranking, feed, finalMatchClosed, leaders, navigat
 function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRound; matches: MatchSnapshot[] }>; drafts: Record<string, ScoreDraft>; displayName: string; username: string; lookupMessage: string; loadingMatches: boolean; matchPredictions: MatchPredictionsState; now: number; saving: boolean; setDisplayName: (value: string) => void; setUsername: (value: string) => void; lookupParticipant: (username?: string) => void; updateDraft: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; loadMatchPredictions: (matchExternalId: string) => void; savePredictions: () => void }) {
   return (
     <>
-      <header className="mx-auto max-w-5xl px-5 py-8">
-        <h1 className="text-4xl font-black tracking-tight">Palpites do mata-mata</h1>
+      <header className="mx-auto max-w-5xl px-4 py-6 sm:px-5 sm:py-8">
+        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Palpites do mata-mata</h1>
         <p className="mt-3 max-w-2xl text-psf-secondary">Preencha nome e username, marque seus placares das partidas abertas e salve tudo de uma vez.</p>
       </header>
-      <section className="px-5 py-4">
+      <section className="px-4 py-4 sm:px-5">
         <div className="mx-auto grid max-w-5xl gap-3 rounded-[1.5rem] bg-psf-surface p-4 shadow-card md:grid-cols-[1fr_0.8fr_auto]">
           <label className="grid gap-1 text-sm font-bold">Nome de exibição<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={30} value={props.displayName} onChange={(event) => props.setDisplayName(event.target.value)} placeholder="Ex: Pedro" /></label>
           <label className="grid gap-1 text-sm font-bold">Username<input className="rounded-2xl bg-psf-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-psf-blue" maxLength={20} value={props.username} onBlur={() => props.lookupParticipant()} onChange={(event) => props.setUsername(event.target.value.replace(/\s/g, ''))} placeholder="pedro_psf" /></label>
-          <button className="self-end rounded-2xl bg-psf-text px-5 py-3 font-black text-white disabled:opacity-60" type="button" onClick={() => props.lookupParticipant()} disabled={!props.username.trim()}>Buscar</button>
+          <button className="w-full self-end rounded-2xl bg-psf-text px-5 py-3 font-black text-white disabled:opacity-60 md:w-auto" type="button" onClick={() => props.lookupParticipant()} disabled={!props.username.trim()}>Buscar</button>
           {props.lookupMessage && <p className="text-sm font-semibold text-psf-secondary md:col-span-3">{props.lookupMessage}</p>}
         </div>
       </section>
-      <section className="mx-auto grid max-w-5xl gap-8 px-5 py-8">
+      <section className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:gap-8 sm:px-5 sm:py-8">
         {props.loadingMatches && <EmptyCard message="Carregando partidas da ESPN..." />}
         {!props.loadingMatches && props.groupedMatches.length === 0 && <EmptyCard message="Nenhuma partida encontrada agora." />}
-        {props.groupedMatches.map((group) => <div className="grid gap-4" key={group.round}><h2 className="text-2xl font-black tracking-tight">{ROUND_LABELS[group.round]}</h2><div className="grid gap-4">{group.matches.map((match) => <MatchCard key={match.externalId} match={match} draft={props.drafts[match.externalId]} now={props.now} publicPredictions={props.matchPredictions[match.externalId]} onChange={props.updateDraft} onReveal={props.loadMatchPredictions} />)}</div></div>)}
+        {props.groupedMatches.map((group) => <div className="grid gap-4" key={group.round}><h2 className="text-xl font-black tracking-tight sm:text-2xl">{ROUND_LABELS[group.round]}</h2><div className="grid gap-4">{group.matches.map((match) => <MatchCard key={match.externalId} match={match} draft={props.drafts[match.externalId]} now={props.now} publicPredictions={props.matchPredictions[match.externalId]} onChange={props.updateDraft} onReveal={props.loadMatchPredictions} />)}</div></div>)}
       </section>
-      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-psf-surface/95 px-5 py-4 backdrop-blur"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><p className="hidden text-sm font-semibold text-psf-secondary sm:block">Campos inválidos permanecem preenchidos para você corrigir sem perder nada.</p><button className="ml-auto w-full rounded-full bg-psf-blue px-8 py-4 text-lg font-black text-white shadow-card disabled:opacity-60 sm:w-auto" type="button" onClick={props.savePredictions} disabled={props.saving}>{props.saving ? 'Salvando...' : 'Salvar Palpites'}</button></div></footer>
+      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-psf-surface/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:px-5"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><p className="hidden text-sm font-semibold text-psf-secondary sm:block">Campos inválidos permanecem preenchidos para você corrigir sem perder nada.</p><button className="ml-auto w-full rounded-full bg-psf-blue px-6 py-4 text-base font-black text-white shadow-card disabled:opacity-60 sm:w-auto sm:px-8 sm:text-lg" type="button" onClick={props.savePredictions} disabled={props.saving}>{props.saving ? 'Salvando...' : 'Salvar Palpites'}</button></div></footer>
     </>
   );
 }
@@ -303,9 +305,9 @@ function MatchCard({ match, draft, now, publicPredictions, onChange, onReveal }:
   const statusLabel = hasPlaceholder ? 'Aguardando definição dos times' : locked ? statusText(match.status) : 'Aberto para palpite';
 
   return (
-    <article className={`rounded-[2rem] bg-psf-surface p-5 shadow-card ${draft?.saved ? 'ring-2 ring-psf-success' : ''} ${disabled ? 'opacity-90' : ''}`}>
-      <div className="mb-4 flex items-center justify-between gap-3"><time className="text-sm font-bold text-psf-secondary">{formatKickoff(match.kickoffAt)}</time><span className={`rounded-full px-3 py-1 text-xs font-black ${disabled ? 'bg-psf-background text-psf-secondary' : 'bg-blue-50 text-psf-blue'}`}>{statusLabel}</span></div>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3"><TeamBlock name={match.homeTeam.name} logoUrl={match.homeTeam.logoUrl} align="right" /><div className="grid grid-cols-[4rem_auto_4rem] items-center gap-2"><ScoreInput value={locked ? match.homeScore : draft?.homeScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'homeScore', value)} /><span className="text-xl font-black text-psf-muted">×</span><ScoreInput value={locked ? match.awayScore : draft?.awayScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'awayScore', value)} /></div><TeamBlock name={match.awayTeam.name} logoUrl={match.awayTeam.logoUrl} align="left" /></div>
+    <article className={`rounded-[1.5rem] bg-psf-surface p-4 shadow-card sm:rounded-[2rem] sm:p-5 ${draft?.saved ? 'ring-2 ring-psf-success' : ''} ${disabled ? 'opacity-90' : ''}`}>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"><time className="text-sm font-bold text-psf-secondary">{formatKickoff(match.kickoffAt)}</time><span className={`w-fit rounded-full px-3 py-1 text-xs font-black ${disabled ? 'bg-psf-background text-psf-secondary' : 'bg-blue-50 text-psf-blue'}`}>{statusLabel}</span></div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3"><TeamBlock name={match.homeTeam.name} logoUrl={match.homeTeam.logoUrl} align="right" /><div className="mx-auto grid grid-cols-[2.75rem_auto_2.75rem] items-center gap-1 sm:grid-cols-[4rem_auto_4rem] sm:gap-2"><ScoreInput value={locked ? match.homeScore : draft?.homeScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'homeScore', value)} /><span className="text-xl font-black text-psf-muted">×</span><ScoreInput value={locked ? match.awayScore : draft?.awayScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'awayScore', value)} /></div><TeamBlock name={match.awayTeam.name} logoUrl={match.awayTeam.logoUrl} align="left" /></div>
       {draft?.error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-psf-danger">{draft.error}</p>}
       {draft?.saved && !draft.error && <p className="mt-4 text-sm font-black text-psf-success">✓ Salvo</p>}
       {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="text-sm font-black text-psf-blue" type="button" onClick={() => onReveal(match.externalId)}>{publicPredictions?.loading ? 'Carregando...' : 'Ver palpites revelados'}</button>{publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex items-center justify-between rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={`${prediction.displayName}-${prediction.savedAt}`}><span>{prediction.displayName}</span><span className={prediction.points === 1 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore}</span></div>)}</div>}</section>}
@@ -334,11 +336,11 @@ function InfoPanel({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function TeamBlock({ name, logoUrl, align }: { name: string; logoUrl: string | null; align: 'left' | 'right' }) {
-  return <div className={`flex items-center gap-3 ${align === 'right' ? 'justify-end text-right' : ''}`}>{align === 'right' && <strong className="text-base font-black sm:text-lg">{name}</strong>}<div className="grid h-11 w-11 place-items-center overflow-hidden rounded-full bg-psf-background text-sm font-black">{logoUrl ? <img alt="" className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="text-base font-black sm:text-lg">{name}</strong>}</div>;
+  return <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="min-w-0 break-words text-sm font-black sm:text-lg">{name}</strong>}<div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-psf-background text-xs font-black sm:h-11 sm:w-11 sm:text-sm">{logoUrl ? <img alt={`Bandeira de ${name}`} className="h-full w-full object-cover" src={logoUrl} /> : name.slice(0, 2).toUpperCase()}</div>{align === 'left' && <strong className="min-w-0 break-words text-sm font-black sm:text-lg">{name}</strong>}</div>;
 }
 
 function ScoreInput({ value, disabled, onChange }: { value?: string | number | null; disabled: boolean; onChange: (value: string) => void }) {
-  return <input className="h-14 rounded-2xl bg-psf-background text-center text-2xl font-black outline-none focus:ring-2 focus:ring-psf-blue disabled:text-psf-secondary" disabled={disabled} inputMode="numeric" max={20} min={0} value={value ?? ''} onChange={(event) => onChange(event.target.value)} placeholder="-" />;
+  return <input className="h-11 rounded-2xl bg-psf-background text-center text-lg font-black outline-none focus:ring-2 focus:ring-psf-blue disabled:text-psf-secondary sm:h-14 sm:text-2xl" disabled={disabled} inputMode="numeric" max={20} min={0} value={value ?? ''} onChange={(event) => onChange(event.target.value)} placeholder="-" />;
 }
 
 function EmptyCard({ message }: { message: string }) {
@@ -394,8 +396,8 @@ function validateDrafts(matches: MatchSnapshot[], drafts: Record<string, ScoreDr
   return { errorCount, predictions, nextDrafts };
 }
 
-function groupMatches(matches: MatchSnapshot[]) {
-  return ROUND_ORDER.map((round) => ({
+function groupMatches(matches: MatchSnapshot[], roundOrder: MatchRound[] = ROUND_ORDER) {
+  return roundOrder.map((round) => ({
     round,
     matches: matches.filter((match) => match.round === round).sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime()),
   })).filter((group) => group.matches.length > 0);
