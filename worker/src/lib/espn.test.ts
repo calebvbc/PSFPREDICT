@@ -26,14 +26,60 @@ describe('expandEspnDateQueries', () => {
 });
 
 describe('getEspnDateQueries', () => {
-  it('uses only the original ESPN date query to stay below Worker subrequest limits', () => {
-    expect(getEspnDateQueries('20260628-20260630')).toEqual(['20260628-20260630']);
+  it('expands range queries into daily ESPN date queries', () => {
+    expect(getEspnDateQueries('20260628-20260719')).toEqual([
+      '20260628',
+      '20260629',
+      '20260630',
+      '20260701',
+      '20260702',
+      '20260703',
+      '20260704',
+      '20260705',
+      '20260706',
+      '20260707',
+      '20260708',
+      '20260709',
+      '20260710',
+      '20260711',
+      '20260712',
+      '20260713',
+      '20260714',
+      '20260715',
+      '20260716',
+      '20260717',
+      '20260718',
+      '20260719',
+    ]);
+  });
+
+  it('keeps a single ESPN date query unchanged', () => {
+    expect(getEspnDateQueries('20260709')).toEqual(['20260709']);
   });
 });
 
 describe('fetchKnockoutMatches', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('fetches an expanded ESPN date range with one scoreboard request per day', async () => {
+    const rangeEnv = { ...env, ESPN_KNOCKOUT_DATES: '20260628-20260719' };
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input));
+      const date = url.searchParams.get('dates') ?? '20260628';
+      const index = getEspnDateQueries(rangeEnv.ESPN_KNOCKOUT_DATES).indexOf(date);
+      const events = index >= 0 && index < 16
+        ? [scoreboardEvent(`${index}-a`, date), scoreboardEvent(`${index}-b`, date)]
+        : [];
+
+      return jsonResponse({ events });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchKnockoutMatches(rangeEnv)).resolves.toHaveLength(32);
+    expect(fetchMock).toHaveBeenCalledTimes(22);
+    expect(fetchMock.mock.calls.map(([input]) => new URL(String(input)).searchParams.get('dates'))).toEqual(getEspnDateQueries('20260628-20260719'));
   });
 
   it('fills missing scoreboard matches from ESPN summary event ids', async () => {
@@ -80,4 +126,19 @@ function jsonResponse(payload: unknown) {
     ok: true,
     json: async () => payload,
   } as Response;
+}
+
+function scoreboardEvent(id: string, date: string) {
+  return {
+    id,
+    name: 'Round of 32',
+    date: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T20:00:00.000Z`,
+    status: { type: { name: 'STATUS_SCHEDULED', state: 'pre' } },
+    competitions: [{
+      competitors: [
+        { homeAway: 'home', team: { id: `${id}-home`, displayName: 'Home', abbreviation: 'HOM' } },
+        { homeAway: 'away', team: { id: `${id}-away`, displayName: 'Away', abbreviation: 'AWY' } },
+      ],
+    }],
+  };
 }

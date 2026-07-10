@@ -18,7 +18,8 @@ export async function fetchKnockoutMatches(env: Env) {
 }
 
 export function getEspnDateQueries(dates: string): string[] {
-  return [dates.trim()];
+  const trimmed = dates.trim();
+  return ESPN_DATE_RANGE_PATTERN.test(trimmed) ? expandEspnDateQueries(trimmed) : [trimmed];
 }
 
 export function expandEspnDateQueries(dates: string): string[] {
@@ -78,7 +79,7 @@ function getEspnSummaryBaseUrl(env: Env) {
   return scoreboardUrl;
 }
 
-function dedupeMatches(matches: MatchSnapshot[]) {
+export function dedupeMatches(matches: MatchSnapshot[]) {
   return [...new Map(matches.map((match) => [match.externalId, match])).values()]
     .sort((a, b) => new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime());
 }
