@@ -155,7 +155,7 @@ export function App() {
 
     setOpenPredictionMatchIds((current) => current.includes(matchExternalId) ? current : [...current, matchExternalId]);
 
-    if (matchPredictions[matchExternalId]?.predictions) return;
+    if (matchPredictions[matchExternalId]?.predictions || matchPredictions[matchExternalId]?.loading) return;
 
     setMatchPredictions((current) => ({ ...current, [matchExternalId]: { ...current[matchExternalId], loading: true, error: undefined } }));
     try {

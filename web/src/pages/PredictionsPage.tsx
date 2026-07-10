@@ -1,6 +1,6 @@
 import type { MatchRound, MatchSnapshot } from '../../../shared/types/domain';
 import { EmptyCard } from '../components/InfoPanel';
-import { MatchCard } from '../components/MatchCard';
+import { MatchCard, type MatchCardProps } from '../components/MatchCard';
 import { ROUND_LABELS } from '../lib/presentation';
 import type { MatchPredictionsState, ScoreDraft } from '../types';
 
@@ -24,7 +24,20 @@ export function PredictionsPage(props: { groupedMatches: Array<{ round: MatchRou
       <section className="mx-auto grid max-w-5xl gap-6 px-4 py-6 sm:gap-8 sm:px-5 sm:py-8">
         {props.loadingMatches && <EmptyCard message="Carregando partidas da ESPN..." />}
         {!props.loadingMatches && props.groupedMatches.length === 0 && <EmptyCard message="Nenhuma partida encontrada agora." />}
-        {props.groupedMatches.map((group) => <div className="grid gap-4" key={group.round}><h2 className="text-xl font-black tracking-tight sm:text-2xl">{ROUND_LABELS[group.round]}</h2><div className="grid gap-4">{group.matches.map((match) => <MatchCard key={match.externalId} match={match} draft={props.drafts[match.externalId]} now={props.now} publicPredictions={props.matchPredictions[match.externalId]} isOpen={props.openPredictionMatchIds.includes(match.externalId)} allMatches={allMatches} onChange={props.updateDraft} onToggleReveal={props.loadMatchPredictions} />)}</div></div>)}
+        {props.groupedMatches.map((group) => <div className="grid gap-4" key={group.round}><h2 className="text-xl font-black tracking-tight sm:text-2xl">{ROUND_LABELS[group.round]}</h2><div className="grid gap-4">{group.matches.map((match) => {
+          const matchCardProps = {
+            match,
+            draft: props.drafts[match.externalId],
+            now: props.now,
+            publicPredictions: props.matchPredictions[match.externalId],
+            isOpen: props.openPredictionMatchIds.includes(match.externalId),
+            allMatches,
+            onChange: props.updateDraft,
+            onToggleReveal: props.loadMatchPredictions,
+          } satisfies MatchCardProps;
+
+          return <MatchCard key={match.externalId} {...matchCardProps} />;
+        })}</div></div>)}
       </section>
       <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-black/5 bg-psf-surface/95 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur sm:px-5"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><p className="hidden text-sm font-semibold text-psf-secondary sm:block">Campos inválidos permanecem preenchidos para você corrigir sem perder nada.</p><button className="ml-auto w-full rounded-full bg-psf-blue px-6 py-4 text-base font-black text-white shadow-card disabled:opacity-60 sm:w-auto sm:px-8 sm:text-lg" type="button" onClick={props.savePredictions} disabled={props.saving}>{props.saving ? 'Salvando...' : 'Salvar Palpites'}</button></div></footer>
     </>
