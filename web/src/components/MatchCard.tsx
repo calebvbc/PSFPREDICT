@@ -21,11 +21,6 @@ export function MatchCard({ match, draft, now, publicPredictions, isOpen, allMat
   const statusLabel = hasPlaceholder ? 'Aguardando definição dos times' : locked ? statusText(match.status) : 'Aberto para palpite';
 
   function togglePredictions() {
-    const nextOpen = !isOpen;
-    if (nextOpen && !publicPredictions?.predictions && !publicPredictions?.loading) {
-      onToggleReveal(match.externalId);
-      return;
-    }
     onToggleReveal(match.externalId);
   }
 
