@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { MatchSnapshot } from '../../../shared/types/domain';
-import { matchesRoute, hasCompleteKnockoutCache } from './matches';
+import { matchesRoute, hasCompleteKnockoutCache, selectMostCompleteMatches } from './matches';
 import { listMatches } from '../lib/db-store';
 import { syncKnockoutMatches } from '../jobs/sync';
 import type { Env } from '../lib/env';
@@ -61,6 +61,42 @@ describe('matches route cache validation', () => {
 
     expect(hasCompleteKnockoutCache(completeCache)).toBe(true);
     expect(hasCompleteKnockoutCache(completeCache.filter((cachedMatch) => cachedMatch.round !== 'round_of_32'))).toBe(false);
+  });
+
+  it('treats cache with incomplete quarterfinals as incomplete even when every round exists', () => {
+    const incompleteQuarterfinalCache = [
+      ...Array.from({ length: 16 }, (_, index) => match('round_of_32', `round-of-32-${index}`)),
+      ...Array.from({ length: 8 }, (_, index) => match('round_of_16', `round-of-16-${index}`)),
+      ...Array.from({ length: 3 }, (_, index) => match('quarterfinal', `quarterfinal-${index}`)),
+      ...Array.from({ length: 2 }, (_, index) => match('semifinal', `semifinal-${index}`)),
+      match('third_place'),
+      match('final'),
+    ];
+
+    expect(hasCompleteKnockoutCache(incompleteQuarterfinalCache)).toBe(false);
+  });
+
+  it('merges synced complete quarterfinals over incomplete cached quarterfinals even when total synced count is lower', () => {
+    const cached = [
+      ...Array.from({ length: 16 }, (_, index) => match('round_of_32', `cached-round-of-32-${index}`)),
+      ...Array.from({ length: 8 }, (_, index) => match('round_of_16', `cached-round-of-16-${index}`)),
+      ...Array.from({ length: 3 }, (_, index) => match('quarterfinal', `cached-quarterfinal-${index}`)),
+      ...Array.from({ length: 2 }, (_, index) => match('semifinal', `cached-semifinal-${index}`)),
+      match('third_place', 'cached-third-place'),
+      match('final', 'cached-final'),
+    ];
+    const synced = Array.from({ length: 4 }, (_, index) => match('quarterfinal', `synced-quarterfinal-${index}`));
+
+    const selected = selectMostCompleteMatches(cached, synced);
+
+    expect(selected.source).toBe('espn');
+    expect(selected.matches).toHaveLength(32);
+    expect(selected.matches.filter((selectedMatch) => selectedMatch.round === 'quarterfinal').map((selectedMatch) => selectedMatch.externalId)).toEqual([
+      'synced-quarterfinal-0',
+      'synced-quarterfinal-1',
+      'synced-quarterfinal-2',
+      'synced-quarterfinal-3',
+    ]);
   });
 
   it('syncs when cached database only contains quarterfinal matches', async () => {
