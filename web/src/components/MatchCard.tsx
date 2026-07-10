@@ -1,20 +1,21 @@
-import { useState } from 'react';
 import type { MatchSnapshot, PublicPredictionSnapshot } from '../../../shared/types/domain';
 import { formatKickoff, statusText } from '../lib/presentation';
 import { isPlaceholderTeam, teamCode, teamEmoji } from '../lib/teams';
 import type { ScoreDraft } from '../types';
 
-export function MatchCard({ match, draft, now, publicPredictions, allMatches = [match], onChange, onReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; allMatches?: MatchSnapshot[]; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onReveal: (matchExternalId: string) => void }) {
-  const [predictionsOpen, setPredictionsOpen] = useState(false);
+export function MatchCard({ match, draft, now, publicPredictions, isOpen, allMatches = [match], onChange, onToggleReveal }: { match: MatchSnapshot; draft?: ScoreDraft; now: number; publicPredictions?: { loading?: boolean; predictions?: PublicPredictionSnapshot[]; error?: string }; isOpen: boolean; allMatches?: MatchSnapshot[]; onChange: (matchExternalId: string, side: 'homeScore' | 'awayScore', value: string) => void; onToggleReveal: (matchExternalId: string) => void }) {
   const locked = match.status !== 'scheduled' || new Date(match.kickoffAt).getTime() <= now;
   const hasPlaceholder = isPlaceholderTeam(match.homeTeam) || isPlaceholderTeam(match.awayTeam);
   const disabled = locked || hasPlaceholder;
   const statusLabel = hasPlaceholder ? 'Aguardando definição dos times' : locked ? statusText(match.status) : 'Aberto para palpite';
 
   function togglePredictions() {
-    const nextOpen = !predictionsOpen;
-    setPredictionsOpen(nextOpen);
-    if (nextOpen && !publicPredictions?.predictions && !publicPredictions?.loading) onReveal(match.externalId);
+    const nextOpen = !isOpen;
+    if (nextOpen && !publicPredictions?.predictions && !publicPredictions?.loading) {
+      onToggleReveal(match.externalId);
+      return;
+    }
+    onToggleReveal(match.externalId);
   }
 
   return (
@@ -23,7 +24,7 @@ export function MatchCard({ match, draft, now, publicPredictions, allMatches = [
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3"><TeamBlock team={match.homeTeam} align="right" placeholderLabel={placeholderCandidateLabel(match, match.homeTeam, allMatches)} /><div className="mx-auto grid grid-cols-[2.75rem_auto_2.75rem] items-center gap-1 sm:grid-cols-[4rem_auto_4rem] sm:gap-2"><ScoreInput value={locked ? match.homeScore : draft?.homeScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'homeScore', value)} /><span className="text-xl font-black text-psf-muted">×</span><ScoreInput value={locked ? match.awayScore : draft?.awayScore} disabled={disabled} onChange={(value) => onChange(match.externalId, 'awayScore', value)} /></div><TeamBlock team={match.awayTeam} align="left" placeholderLabel={placeholderCandidateLabel(match, match.awayTeam, allMatches)} /></div>
       {draft?.error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-psf-danger">{draft.error}</p>}
       {draft?.saved && !draft.error && <p className="mt-4 text-sm font-black text-psf-success">✓ Salvo</p>}
-      {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="flex items-center gap-2 text-sm font-black text-psf-blue" type="button" onClick={togglePredictions} aria-expanded={predictionsOpen}>{publicPredictions?.loading && predictionsOpen ? 'Carregando...' : predictionsOpen ? 'Ocultar palpites revelados' : 'Ver palpites revelados'}<ChevronIcon open={predictionsOpen} /></button>{predictionsOpen && publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{predictionsOpen && publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={`${prediction.displayName}-${prediction.savedAt}`}><span>{prediction.displayName}</span><span className={prediction.points > 0 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore} · {prediction.points} pts</span></div>)}</div>}</section>}
+      {locked && <section className="mt-4 rounded-[1.5rem] bg-psf-background p-4"><button className="flex items-center gap-2 text-sm font-black text-psf-blue" type="button" onClick={togglePredictions} aria-expanded={isOpen}>{publicPredictions?.loading && isOpen ? 'Carregando...' : isOpen ? 'Ocultar palpites revelados' : 'Ver palpites revelados'}<ChevronIcon open={isOpen} /></button>{isOpen && publicPredictions?.error && <p className="mt-2 text-sm font-bold text-psf-danger">{publicPredictions.error}</p>}{isOpen && publicPredictions?.predictions && <div className="mt-3 grid gap-2">{publicPredictions.predictions.length === 0 ? <p className="text-sm font-bold text-psf-secondary">Nenhum palpite registrado.</p> : publicPredictions.predictions.map((prediction) => <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-psf-surface p-3 text-sm font-bold" key={`${prediction.displayName}-${prediction.savedAt}`}><span>{prediction.displayName}</span><span className={prediction.points > 0 ? 'text-psf-success' : 'text-psf-secondary'}>{prediction.homeScore} × {prediction.awayScore} · {prediction.points} pts</span></div>)}</div>}</section>}
     </article>
   );
 }
