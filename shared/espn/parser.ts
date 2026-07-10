@@ -27,7 +27,7 @@ export function normalizePlaceholderName(rawName: string): { name: string; isPla
   if (loserSemi) return { name: `Perdedor — Semifinal ${loserSemi[1]}`, isPlaceholder: true };
 
   const tbd = /\bTBD\b|to be decided|winner|loser|vencedor|perdedor|a definir/i.test(normalized);
-  return { name: tbd ? '🏆' : rawName, isPlaceholder: tbd };
+  return { name: tbd ? 'A definir' : rawName, isPlaceholder: tbd };
 }
 
 export function parseEspnScoreboard(payload: unknown): MatchSnapshot[] {
