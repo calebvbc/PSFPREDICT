@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FeedEventSnapshot, MatchRound, MatchSnapshot, ParticipantPredictionsSnapshot, PublicPredictionSnapshot, RankingEntrySnapshot } from '../../shared/types/domain';
+import { isPlaceholderTeam, teamCode } from './lib/teams';
 import { PredictionsPage } from './pages/PredictionsPage';
 
 const ROUND_LABELS: Record<MatchRound, string> = {
@@ -34,6 +35,7 @@ export function App() {
   const [username, setUsername] = useState('');
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [matchPredictions, setMatchPredictions] = useState<MatchPredictionsState>({});
+  const [openPredictionMatchIds, setOpenPredictionMatchIds] = useState<string[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [publicDataError, setPublicDataError] = useState<PublicDataError>();
   const [saving, setSaving] = useState(false);
@@ -146,7 +148,16 @@ export function App() {
   }
 
   async function loadMatchPredictions(matchExternalId: string) {
-    setMatchPredictions((current) => ({ ...current, [matchExternalId]: { loading: true } }));
+    if (openPredictionMatchIds.includes(matchExternalId)) {
+      setOpenPredictionMatchIds((current) => current.filter((id) => id !== matchExternalId));
+      return;
+    }
+
+    setOpenPredictionMatchIds((current) => current.includes(matchExternalId) ? current : [...current, matchExternalId]);
+
+    if (matchPredictions[matchExternalId]?.predictions) return;
+
+    setMatchPredictions((current) => ({ ...current, [matchExternalId]: { ...current[matchExternalId], loading: true, error: undefined } }));
     try {
       const response = await fetch(apiUrl(`/api/matches/${encodeURIComponent(matchExternalId)}/predictions`));
       const data = await response.json() as { predictions?: PublicPredictionSnapshot[]; error?: string };
@@ -208,7 +219,7 @@ export function App() {
       <TopNav route={route} navigate={navigate} />
 
       {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
-      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
+      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} openPredictionMatchIds={openPredictionMatchIds} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
       {route === '/ranking' && <RankingPage ranking={ranking} finalMatchClosed={finalMatchClosed} leaders={leaders} loading={loadingMatches} error={publicDataError} />}
       {route === '/feed' && <FeedPage feed={feed} loading={loadingMatches} error={publicDataError} />}
       {!['/', '/palpites', '/ranking', '/feed'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
@@ -287,15 +298,11 @@ function RankingMini({ entry }: { entry: RankingEntrySnapshot }) {
 }
 
 function MiniMatch({ match }: { match: MatchSnapshot }) {
-  return <div className="rounded-2xl bg-psf-background p-4"><p className="text-sm font-bold text-psf-secondary">{ROUND_LABELS[match.round]} · {formatKickoff(match.kickoffAt)}</p><p className="mt-2 text-lg font-black">{match.homeTeam.name} × {match.awayTeam.name}</p></div>;
+  return <div className="rounded-2xl bg-psf-background p-4"><p className="text-sm font-bold text-psf-secondary">{ROUND_LABELS[match.round]} · {formatKickoff(match.kickoffAt)}</p><p className="mt-2 text-lg font-black">{teamCode(match.homeTeam)} × {teamCode(match.awayTeam)}</p></div>;
 }
 
 function InfoPanel({ title, children }: { title: string; children: ReactNode }) {
   return <section className="rounded-[1.75rem] bg-psf-surface p-5 shadow-card"><h2 className="mb-4 text-xl font-black">{title}</h2><div className="grid gap-3">{children}</div></section>;
-}
-
-function isPlaceholderTeam(team: MatchSnapshot['homeTeam']) {
-  return team.isPlaceholder || /^(a definir|vencedor|perdedor)/i.test(team.name.trim());
 }
 
 function EmptyCard({ message }: { message: string }) {
