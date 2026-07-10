@@ -287,7 +287,7 @@ function RankingMini({ entry }: { entry: RankingEntrySnapshot }) {
 }
 
 function MiniMatch({ match }: { match: MatchSnapshot }) {
-  return <div className="rounded-2xl bg-psf-background p-4"><p className="text-sm font-bold text-psf-secondary">{ROUND_LABELS[match.round]} · {formatKickoff(match.kickoffAt)}</p><p className="mt-2 text-lg font-black">{match.homeTeam.name} × {match.awayTeam.name}</p></div>;
+  return <div className="rounded-2xl bg-psf-background p-4"><p className="text-sm font-bold text-psf-secondary">{ROUND_LABELS[match.round]} · {formatKickoff(match.kickoffAt)}</p><p className="mt-2 text-lg font-black">{teamCode(match.homeTeam)} × {teamCode(match.awayTeam)}</p></div>;
 }
 
 function InfoPanel({ title, children }: { title: string; children: ReactNode }) {
@@ -296,6 +296,24 @@ function InfoPanel({ title, children }: { title: string; children: ReactNode }) 
 
 function isPlaceholderTeam(team: MatchSnapshot['homeTeam']) {
   return team.isPlaceholder || /^(a definir|vencedor|perdedor)/i.test(team.name.trim());
+}
+
+const TEAM_CODES: Record<string, string> = {
+  franca: 'FRA',
+  marrocos: 'MAR',
+  japao: 'JPN',
+  coreiadosul: 'KOR',
+};
+
+function teamCode(team: MatchSnapshot['homeTeam']) {
+  if (team.abbreviation) return team.abbreviation.toUpperCase();
+
+  const normalizedName = normalizeTeamName(team.name);
+  return TEAM_CODES[normalizedName] ?? normalizedName.slice(0, 3).toUpperCase();
+}
+
+function normalizeTeamName(name: string) {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
 }
 
 function EmptyCard({ message }: { message: string }) {

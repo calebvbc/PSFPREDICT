@@ -27,9 +27,32 @@ function placeholderCandidateLabel(match: MatchSnapshot, team: MatchSnapshot['ho
   if (!isPlaceholderTeam(team)) return undefined;
 
   const sourceMatch = findSourceMatch(match, team.name, allMatches);
-  if (!sourceMatch) return '🏆/🏆';
+  if (!sourceMatch) return 'A definir';
 
-  return `${teamEmoji(sourceMatch.homeTeam)}/${teamEmoji(sourceMatch.awayTeam)}`;
+  const homeCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.homeTeam, allMatches);
+  const awayCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.awayTeam, allMatches);
+  if (!homeCandidate || !awayCandidate) return 'A definir';
+
+  return `${homeCandidate} / ${awayCandidate}`;
+}
+
+function resolveTeamEmoji(match: MatchSnapshot, team: MatchSnapshot['homeTeam'], allMatches: MatchSnapshot[], seen = new Set<string>()): string | undefined {
+  const emoji = teamEmoji(team);
+  if (emoji) return emoji;
+  if (!isPlaceholderTeam(team)) return undefined;
+
+  const seenKey = `${match.externalId}:${team.name}`;
+  if (seen.has(seenKey)) return undefined;
+  seen.add(seenKey);
+
+  const sourceMatch = findSourceMatch(match, team.name, allMatches);
+  if (!sourceMatch) return undefined;
+
+  const homeCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.homeTeam, allMatches, seen);
+  const awayCandidate = resolveTeamEmoji(sourceMatch, sourceMatch.awayTeam, allMatches, seen);
+  if (!homeCandidate || !awayCandidate) return undefined;
+
+  return `${homeCandidate} / ${awayCandidate}`;
 }
 
 function findSourceMatch(match: MatchSnapshot, placeholderName: string, allMatches: MatchSnapshot[]) {
@@ -55,9 +78,23 @@ const TEAM_FLAG_EMOJIS: Record<string, string> = {
   africadosul: '🇿🇦', alemanha: '🇩🇪', argentina: '🇦🇷', australia: '🇦🇺', brasil: '🇧🇷', canada: '🇨🇦', chile: '🇨🇱', china: '🇨🇳', colombia: '🇨🇴', coreiadosul: '🇰🇷', costarica: '🇨🇷', dinamarca: '🇩🇰', escocia: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', espanha: '🇪🇸', estadosunidos: '🇺🇸', eua: '🇺🇸', franca: '🇫🇷', gana: '🇬🇭', holanda: '🇳🇱', inglaterra: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', italia: '🇮🇹', jamaica: '🇯🇲', japao: '🇯🇵', marrocos: '🇲🇦', mexico: '🇲🇽', nigeria: '🇳🇬', noruega: '🇳🇴', novazelandia: '🇳🇿', portugal: '🇵🇹', suecia: '🇸🇪', suica: '🇨🇭'
 };
 
+const TEAM_CODES: Record<string, string> = {
+  franca: 'FRA',
+  marrocos: 'MAR',
+  japao: 'JPN',
+  coreiadosul: 'KOR',
+};
+
 function teamEmoji(team: MatchSnapshot['homeTeam']) {
-  if (isPlaceholderTeam(team)) return '🏆';
-  return TEAM_FLAG_EMOJIS[normalizeTeamName(team.name)] ?? '🏆';
+  if (isPlaceholderTeam(team)) return undefined;
+  return TEAM_FLAG_EMOJIS[normalizeTeamName(team.name)];
+}
+
+function teamCode(team: MatchSnapshot['homeTeam']) {
+  if (team.abbreviation) return team.abbreviation.toUpperCase();
+
+  const normalizedName = normalizeTeamName(team.name);
+  return TEAM_CODES[normalizedName] ?? normalizedName.slice(0, 3).toUpperCase();
 }
 
 function normalizeTeamName(name: string) {
@@ -66,7 +103,7 @@ function normalizeTeamName(name: string) {
 
 function TeamBlock({ team, align, placeholderLabel }: { team: MatchSnapshot['homeTeam']; align: 'left' | 'right'; placeholderLabel?: string }) {
   const placeholder = isPlaceholderTeam(team);
-  const label = placeholder ? placeholderLabel ?? '🏆/🏆' : team.name;
+  const label = placeholder ? placeholderLabel ?? 'A definir' : teamCode(team);
   const badge = placeholder ? <CupIcon /> : team.logoUrl ? <img alt={`Bandeira de ${team.name}`} className="h-full w-full scale-[1.85] object-cover" src={team.logoUrl} /> : team.name.slice(0, 2).toUpperCase();
 
   return <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>{align === 'right' && <strong className="min-w-0 truncate whitespace-nowrap text-xs font-black leading-tight sm:text-lg" title={label}>{label}</strong>}<div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-psf-background ring-2 ring-inset ring-black/80 text-xs font-black sm:h-11 sm:w-11 sm:text-sm">{badge}</div>{align === 'left' && <strong className="min-w-0 truncate whitespace-nowrap text-xs font-black leading-tight sm:text-lg" title={label}>{label}</strong>}</div>;
