@@ -34,6 +34,7 @@ export function App() {
   const [username, setUsername] = useState('');
   const [drafts, setDrafts] = useState<Record<string, ScoreDraft>>({});
   const [matchPredictions, setMatchPredictions] = useState<MatchPredictionsState>({});
+  const [openPredictionMatchIds, setOpenPredictionMatchIds] = useState<string[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [publicDataError, setPublicDataError] = useState<PublicDataError>();
   const [saving, setSaving] = useState(false);
@@ -146,7 +147,16 @@ export function App() {
   }
 
   async function loadMatchPredictions(matchExternalId: string) {
-    setMatchPredictions((current) => ({ ...current, [matchExternalId]: { loading: true } }));
+    if (openPredictionMatchIds.includes(matchExternalId)) {
+      setOpenPredictionMatchIds((current) => current.filter((id) => id !== matchExternalId));
+      return;
+    }
+
+    setOpenPredictionMatchIds((current) => current.includes(matchExternalId) ? current : [...current, matchExternalId]);
+
+    if (matchPredictions[matchExternalId]?.predictions) return;
+
+    setMatchPredictions((current) => ({ ...current, [matchExternalId]: { ...current[matchExternalId], loading: true, error: undefined } }));
     try {
       const response = await fetch(apiUrl(`/api/matches/${encodeURIComponent(matchExternalId)}/predictions`));
       const data = await response.json() as { predictions?: PublicPredictionSnapshot[]; error?: string };
@@ -208,7 +218,7 @@ export function App() {
       <TopNav route={route} navigate={navigate} />
 
       {route === '/' && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
-      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
+      {route === '/palpites' && <PredictionsPage groupedMatches={groupedMatches} drafts={drafts} displayName={displayName} username={username} lookupMessage={lookupMessage} loadingMatches={loadingMatches} matchPredictions={matchPredictions} openPredictionMatchIds={openPredictionMatchIds} now={now} saving={saving} setDisplayName={setDisplayName} setUsername={setUsername} lookupParticipant={lookupParticipant} updateDraft={updateDraft} loadMatchPredictions={loadMatchPredictions} savePredictions={savePredictions} />}
       {route === '/ranking' && <RankingPage ranking={ranking} finalMatchClosed={finalMatchClosed} leaders={leaders} loading={loadingMatches} error={publicDataError} />}
       {route === '/feed' && <FeedPage feed={feed} loading={loadingMatches} error={publicDataError} />}
       {!['/', '/palpites', '/ranking', '/feed'].includes(route) && <HomePage nextMatch={nextMatch} ranking={ranking.slice(0, 3)} feed={feed.slice(0, 3)} finalMatchClosed={finalMatchClosed} leaders={leaders} navigate={navigate} loading={loadingMatches} error={publicDataError} />}
