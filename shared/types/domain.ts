@@ -27,7 +27,7 @@ export interface PredictionSnapshot {
   matchExternalId: string;
   homeScore: number;
   awayScore: number;
-  points: 0 | 1;
+  points: 0 | 1 | 3;
   savedAt: string;
 }
 
@@ -66,6 +66,6 @@ export interface PublicPredictionSnapshot {
   matchExternalId: string;
   homeScore: number;
   awayScore: number;
-  points: 0 | 1;
+  points: 0 | 1 | 3;
   savedAt: string;
 }

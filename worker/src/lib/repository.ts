@@ -129,7 +129,7 @@ export async function getRanking(db: Database) {
       initials: getInitials(participant.displayName),
       points,
       predictionsCount,
-      accuracy: predictionsCount === 0 ? 0 : Math.round((points / predictionsCount) * 100),
+      accuracy: predictionsCount === 0 ? 0 : Math.round((points / (predictionsCount * 3)) * 100),
       createdAt: participant.createdAt.toISOString(),
     } satisfies RankingEntrySnapshot;
   }).sort((a, b) => b.points - a.points || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((entry, index) => ({ ...entry, position: index + 1 }));
@@ -159,7 +159,7 @@ export async function getPublicPredictionsForMatch(db: Database, matchExternalId
     matchExternalId,
     homeScore: prediction.homeScore,
     awayScore: prediction.awayScore,
-    points: prediction.points as 0 | 1,
+    points: prediction.points as 0 | 1 | 3,
     savedAt: prediction.updatedAt.toISOString(),
   })) } as const;
 }
@@ -184,7 +184,7 @@ async function addFeedEvents(db: Database, finalizedMatches: MatchSnapshot[]) {
   for (const match of finalizedMatches) {
     const [matchRow] = await db.select().from(matches).where(eq(matches.externalId, match.externalId)).limit(1);
     if (!matchRow) continue;
-    const exact = await db.select({ participant: participants }).from(predictions).innerJoin(participants, eq(predictions.participantId, participants.id)).where(and(eq(predictions.matchId, matchRow.id), eq(predictions.points, 1)));
+    const exact = await db.select({ participant: participants }).from(predictions).innerJoin(participants, eq(predictions.participantId, participants.id)).where(and(eq(predictions.matchId, matchRow.id), eq(predictions.points, 3)));
     if (exact.length === 1) await db.insert(feedEvents).values({ type: 'exact_score', message: `${exact[0].participant.displayName} acertou sozinho o placar de ${match.homeTeam.name} × ${match.awayTeam.name}.` });
   }
   const leader = ranking[0];
@@ -196,7 +196,7 @@ function toParticipantSnapshot(participant: DbParticipant, participantPrediction
 }
 
 function toPredictionSnapshot(prediction: DbPrediction, match: DbMatch): PredictionSnapshot {
-  return { matchExternalId: match.externalId, homeScore: prediction.homeScore, awayScore: prediction.awayScore, points: prediction.points as 0 | 1, savedAt: prediction.updatedAt.toISOString() };
+  return { matchExternalId: match.externalId, homeScore: prediction.homeScore, awayScore: prediction.awayScore, points: prediction.points as 0 | 1 | 3, savedAt: prediction.updatedAt.toISOString() };
 }
 
 function toMatchSnapshot(match: DbMatch): MatchSnapshot {
@@ -235,7 +235,7 @@ function toMatchInsert(match: MatchSnapshot) {
   };
 }
 
-function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 {
+function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 | 3 {
   if (!match || match.status !== 'final') return 0;
   return scoreExactPrediction({ predictedHomeScore: prediction.homeScore, predictedAwayScore: prediction.awayScore, officialHomeScore: match.homeScore, officialAwayScore: match.awayScore });
 }

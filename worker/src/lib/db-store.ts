@@ -196,7 +196,7 @@ export async function getPublicPredictionsForMatch(env: Env, matchExternalId: st
       matchExternalId,
       homeScore: prediction.homeScore,
       awayScore: prediction.awayScore,
-      points: prediction.points === 1 ? 1 : 0,
+      points: prediction.points === 3 ? 3 : prediction.points === 1 ? 1 : 0,
       savedAt: prediction.updatedAt.toISOString(),
     } satisfies PublicPredictionSnapshot)),
   } as const;
@@ -249,7 +249,7 @@ async function generateFeedForFinalizedMatch(env: Env, match: MatchRow) {
     .select({ prediction: predictions, participant: participants })
     .from(predictions)
     .innerJoin(participants, eq(predictions.participantId, participants.id))
-    .where(and(eq(predictions.matchId, match.id), eq(predictions.points, 1)));
+    .where(and(eq(predictions.matchId, match.id), eq(predictions.points, 3)));
 
   const snapshot = matchSnapshot(match);
   const message = exactRows.length === 1
@@ -284,7 +284,7 @@ function calculateRanking(participantRows: ParticipantRow[], predictionRows: Pre
         initials: getInitials(participant.displayName),
         points,
         predictionsCount,
-        accuracy: predictionsCount === 0 ? 0 : Math.round((points / predictionsCount) * 100),
+        accuracy: predictionsCount === 0 ? 0 : Math.round((points / (predictionsCount * 3)) * 100),
         createdAt: participant.createdAt.toISOString(),
       } satisfies RankingEntrySnapshot;
     })
@@ -306,7 +306,7 @@ function predictionSnapshot(prediction: PredictionRow, matchExternalId: string):
     matchExternalId,
     homeScore: prediction.homeScore,
     awayScore: prediction.awayScore,
-    points: prediction.points === 1 ? 1 : 0,
+    points: prediction.points === 3 ? 3 : prediction.points === 1 ? 1 : 0,
     savedAt: prediction.updatedAt.toISOString(),
   };
 }
@@ -362,7 +362,7 @@ function matchValues(match: MatchSnapshot, updatedAt = new Date()): typeof match
   };
 }
 
-function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 {
+function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 | 3 {
   if (!match || match.status !== 'final') return 0;
   return scoreExactPrediction({
     predictedHomeScore: prediction.homeScore,
