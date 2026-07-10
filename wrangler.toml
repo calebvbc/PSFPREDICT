@@ -1,4 +1,4 @@
-name = "psfpredict-api"
+name = "realpsfp"
 main = "worker/src/index.ts"
 compatibility_date = "2026-07-04"
 compatibility_flags = ["nodejs_compat"]

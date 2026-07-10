@@ -2,7 +2,7 @@ import type { MatchRound, MatchSnapshot, MatchStatus, TeamSnapshot } from '../ty
 
 const ROUND_BY_NAME: Array<[RegExp, MatchRound]> = [
   [/round of 32|32 avos|fase de 32/i, 'round_of_32'],
-  [/round of 16|oitavas/i, 'round_of_16'],
+  [/round\s+of\s+16|oitav[ao]s|\b8\s*(?:ªs|as|vos)\b|last\s+16/i, 'round_of_16'],
   [/quarter|quartas/i, 'quarterfinal'],
   [/semi/i, 'semifinal'],
   [/third|3rd|terceiro|3º/i, 'third_place'],
@@ -26,7 +26,7 @@ export function normalizePlaceholderName(rawName: string): { name: string; isPla
   const loserSemi = normalized.match(/Loser\s*-?\s*Semifinal\s+(\d+)/i);
   if (loserSemi) return { name: `Perdedor — Semifinal ${loserSemi[1]}`, isPlaceholder: true };
 
-  const tbd = /\bTBD\b|to be decided|winner|loser/i.test(normalized);
+  const tbd = /\bTBD\b|to be decided|winner|loser|vencedor|perdedor|a definir/i.test(normalized);
   return { name: tbd ? 'A definir' : rawName, isPlaceholder: tbd };
 }
 
@@ -51,7 +51,8 @@ function parseEvent(event: unknown): EspnScoreboardParseResult {
   const competitors = Array.isArray(competition.competitors) ? competition.competitors.map(asRecord) : [];
   if (competitors.length < 2 || externalId === null) return createParseResult(null, false, externalId);
 
-  const round = parseRound(record.name, record.shortName);
+  const kickoffAt = String(record.date ?? competition.date ?? '');
+  const round = parseRound(record.name, record.shortName, kickoffAt);
   if (round === null) return createParseResult(null, true, externalId);
 
   const home = competitors.find((competitor) => competitor.homeAway === 'home') ?? competitors[0];
@@ -60,7 +61,7 @@ function parseEvent(event: unknown): EspnScoreboardParseResult {
   return createParseResult({
     externalId,
     round,
-    kickoffAt: String(record.date ?? competition.date ?? ''),
+    kickoffAt,
     status: parseStatus(asRecord(asRecord(record.status).type).name, asRecord(asRecord(record.status).type).state),
     homeTeam: parseTeam(home),
     awayTeam: parseTeam(away),
@@ -87,15 +88,42 @@ function parseTeam(competitor: Record<string, unknown>): TeamSnapshot {
     id: String(team.id ?? competitor.id ?? placeholder.name),
     name: placeholder.name,
     abbreviation: typeof team.abbreviation === 'string' ? team.abbreviation : null,
-    logoUrl: typeof team.logo === 'string' ? team.logo : null,
+    logoUrl: parseTeamLogo(team),
     color: typeof team.color === 'string' ? `#${team.color.replace(/^#/, '')}` : null,
     isPlaceholder: placeholder.isPlaceholder,
   };
 }
 
+function parseTeamLogo(team: Record<string, unknown>) {
+  if (typeof team.logo === 'string') return team.logo;
+
+  const logos = team.logos;
+  if (Array.isArray(logos)) {
+    const logo = logos.map(asRecord).find((candidate) => typeof candidate.href === 'string');
+    if (logo && typeof logo.href === 'string') return logo.href;
+  }
+
+  return null;
+}
+
 function parseRound(...names: unknown[]): MatchRound | null {
   const joined = names.filter(Boolean).join(' ');
-  return ROUND_BY_NAME.find(([pattern]) => pattern.test(joined))?.[1] ?? null;
+  const dateRound = typeof names.at(-1) === 'string' ? inferRoundFromKickoff(String(names.at(-1))) : null;
+  if (dateRound && /winner|loser|vencedor|perdedor|a definir/i.test(joined)) return dateRound;
+
+  return ROUND_BY_NAME.find(([pattern]) => pattern.test(joined))?.[1] ?? dateRound;
+}
+
+function inferRoundFromKickoff(kickoffAt: string): MatchRound | null {
+  const date = kickoffAt.slice(0, 10);
+  if (date >= '2026-06-28' && date <= '2026-07-03') return 'round_of_32';
+  if (date >= '2026-07-04' && date <= '2026-07-07') return 'round_of_16';
+  if (date >= '2026-07-09' && date <= '2026-07-11') return 'quarterfinal';
+  if (date >= '2026-07-14' && date <= '2026-07-15') return 'semifinal';
+  if (date === '2026-07-18') return 'third_place';
+  if (date === '2026-07-19') return 'final';
+
+  return null;
 }
 
 function parseStatus(name: unknown, state: unknown): MatchStatus {

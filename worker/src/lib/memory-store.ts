@@ -169,7 +169,7 @@ function recalculateRanking(finalizedMatches: MatchSnapshot[] = []) {
         initials: getInitials(participant.displayName),
         points,
         predictionsCount,
-        accuracy: predictionsCount === 0 ? 0 : Math.round((points / predictionsCount) * 100),
+        accuracy: predictionsCount === 0 ? 0 : Math.round((points / (predictionsCount * 3)) * 100),
         createdAt: participant.createdAt,
       } satisfies RankingEntrySnapshot;
     })
@@ -191,7 +191,7 @@ function recalculateRanking(finalizedMatches: MatchSnapshot[] = []) {
 function addFeedEvents(finalizedMatches: MatchSnapshot[], oldLeader: string | null, nextRanking: RankingEntrySnapshot[]) {
   for (const match of finalizedMatches) {
     const exactPredictions = Array.from(participants.values()).filter((participant) =>
-      participant.predictions.some((prediction) => prediction.matchExternalId === match.externalId && prediction.points === 1),
+      participant.predictions.some((prediction) => prediction.matchExternalId === match.externalId && prediction.points === 3),
     );
 
     if (exactPredictions.length === 1) {
@@ -237,7 +237,7 @@ function prependFeedEvent(event: Omit<FeedEventSnapshot, 'id' | 'createdAt'>) {
   if (feedEvents.length > 100) feedEvents.length = 100;
 }
 
-function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 {
+function calculatePredictionPoints(prediction: Pick<PredictionSnapshot, 'homeScore' | 'awayScore'>, match?: MatchSnapshot): 0 | 1 | 3 {
   if (!match || match.status !== 'final') return 0;
   return scoreExactPrediction({
     predictedHomeScore: prediction.homeScore,

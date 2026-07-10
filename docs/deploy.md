@@ -22,6 +22,12 @@ The API, ESPN sync cron, ranking recalculation, feed generation, and prediction 
 npm run deploy:worker
 ```
 
+Configure the admin token as a Worker secret before deploying admin-only routes such as `GET /api/sync/preview`:
+
+```bash
+npx wrangler secret put ADMIN_TOKEN
+```
+
 ## Pre-deploy check
 
 ```bash
